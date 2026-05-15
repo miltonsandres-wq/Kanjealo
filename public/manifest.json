@@ -1,0 +1,17 @@
+{
+  "name": "Kanjealo",
+  "short_name": "Kanjealo",
+  "description": "Plataforma de Fidelización Digital",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#0F2044",
+  "icons": [
+    {
+      "src": "/logos/kanjealo-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
