@@ -30,38 +30,33 @@ export function generarUrlGoogleWallet(params: PassParams): string {
   } = params;
 
   // IDs: solo alfanuméricos + puntos
-  const classId  = `${ISSUER_ID}.${businessId.replace(/-/g, "")}`;
-  const objectId = `${ISSUER_ID}.${clientId.replace(/-/g, "")}`;
+  const classId  = `${ISSUER_ID}.${businessId.replace(/[^a-zA-Z0-9]/g, "")}`;
+  const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   const color = colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`;
 
   const ubicaciones = sucursales
-    .filter(s => s.latitud && s.longitud)
-    .map(s => ({ kind: "walletobjects#latLongPoint", latitude: s.latitud, longitude: s.longitud }));
-
-  const mensajeNotificacion = sucursales.find(s => s.mensaje_notificacion)?.mensaje_notificacion
-    ?? "¡Estás cerca! Muestra tu tarjeta para ganar tu recompensa.";
+    .filter(s => s.latitud != null && s.longitud != null)
+    .map(s => ({ latitude: s.latitud as number, longitude: s.longitud as number }));
 
   const labelPuntos = model === "cashback" ? "Cashback" : model === "points" || model === "tiers" ? "Puntos" : "Sellos";
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.hn";
+
   const loyaltyClass = {
     id: classId,
-    issuerName: "Kanjealo",
+    issuerName: businessNombre,
     programName: programaNombre || businessNombre,
+    reviewStatus: "UNDER_REVIEW",
     hexBackgroundColor: color,
-    rewardsTierPoints: `${sellosRequeridos}`,
-    rewardsTier: "Preferente",
-    ...(ubicaciones.length > 0 && { locations: ubicaciones }),
-    localScheduledNotifications: ubicaciones.length > 0 ? [
-      {
-        mergeable: true,
-        notifyAfterDays: 0,
-        scheduledNotification: {
-          description: { defaultValue: { language: "es", value: mensajeNotificacion } },
-        },
-      },
-    ] : [],
     multipleDevicesAndHoldersAllowedStatus: "ONE_USER_ALL_DEVICES",
+    rewardsTiers: [
+      {
+        tier: "Preferente",
+        tierPoints: `${sellosRequeridos}`,
+      },
+    ],
+    ...(ubicaciones.length > 0 && { locations: ubicaciones }),
   };
 
   const loyaltyObject = {
@@ -83,23 +78,18 @@ export function generarUrlGoogleWallet(params: PassParams): string {
       value: `kj:id:${clientId}`,
       alternateText: clienteNombre,
     },
-    infoModuleData: {
-      showLastUpdateTime: true,
-      labelValueRows: [
-        {
-          columns: [
-            { label: "Programa", value: programaNombre || businessNombre },
-            { label: "Negocio", value: businessNombre },
-          ],
-        },
-        {
-          columns: [
-            { label: labelPuntos, value: `${totalSellos}` },
-            { label: "Para premio", value: `${sellosRequeridos}` },
-          ],
-        },
-      ],
-    },
+    textModulesData: [
+      {
+        header: "Negocio",
+        body: businessNombre,
+        id: "negocio",
+      },
+      {
+        header: "Progreso",
+        body: `${totalSellos} de ${sellosRequeridos} ${labelPuntos.toLowerCase()}`,
+        id: "progreso",
+      },
+    ],
   };
 
   const jwtPayload = {
@@ -107,7 +97,7 @@ export function generarUrlGoogleWallet(params: PassParams): string {
     aud: "google",
     typ: "savetowallet",
     iat: Math.floor(Date.now() / 1000),
-    origins: ["https://kanjealo.hn", "http://localhost:3000", "http://localhost:3001"],
+    origins: [appUrl, "http://localhost:3000"],
     payload: {
       loyaltyClasses: [loyaltyClass],
       loyaltyObjects: [loyaltyObject],
