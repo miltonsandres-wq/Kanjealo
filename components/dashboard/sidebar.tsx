@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CreditCard,
@@ -17,6 +17,7 @@ import {
 import { KanjealoLogo } from "../logo";
 import { cn } from "@/lib/utils";
 import { useNegocio, useLoyaltyConfig } from "@/lib/hooks";
+import { useClerk } from "@clerk/nextjs";
 
 const BASE_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -31,6 +32,8 @@ const BOTTOM_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { signOut } = useClerk();
   const { negocio } = useNegocio();
   const { config } = useLoyaltyConfig(negocio?.id);
   const model = config?.model;
@@ -84,7 +87,10 @@ export function Sidebar() {
           <HelpCircle className="w-5 h-5" />
           <span className="text-sm">Ayuda</span>
         </button>
-        <button className="flex items-center gap-3 px-4 py-2 text-white/50 hover:text-coral transition-colors w-full">
+        <button
+          onClick={() => signOut(() => router.push("/"))}
+          className="flex items-center gap-3 px-4 py-2 text-white/50 hover:text-coral transition-colors w-full"
+        >
           <LogOut className="w-5 h-5" />
           <span className="text-sm">Cerrar Sesión</span>
         </button>
