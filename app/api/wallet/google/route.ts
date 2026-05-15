@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   ] = await Promise.all([
     supabase.from("clientes").select("id, nombre, total_sellos").eq("id", client_id).single(),
     supabase
-      .from("businesses")
+      .from("negocios")
       .select("id, nombre, nombre_programa, color_marca, sellos_requeridos")
       .eq("id", business_id)
       .single(),
