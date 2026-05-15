@@ -258,7 +258,7 @@ export default function ConfiguracionPage() {
   };
 
   const copiarUrl = () => {
-    navigator.clipboard.writeText(`https://kanjealo.hn/c/${negocio?.slug}`);
+    navigator.clipboard.writeText(`${window.location.origin}/c/${negocio?.slug}`);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   };
