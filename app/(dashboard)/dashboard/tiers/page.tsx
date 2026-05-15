@@ -85,7 +85,7 @@ export default function TiersPage() {
 
       {/* Pirámide de niveles */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...tierStats].reverse().map((tier, i) => {
+        {[...tierStats].reverse().map((tier) => {
           const pct = totalClientes > 0 ? Math.round((tier.count / totalClientes) * 100) : 0;
           return (
             <Card key={tier.name} className="p-6 border-none shadow-xl bg-white space-y-4">

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { UserButton, useUser } from "@clerk/nextjs";
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { Badge } from "../ui/badge";
 
 export function Topbar() {

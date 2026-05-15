@@ -4,11 +4,10 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KanjealoLogo } from "@/components/logo";
 import { PinKeypad } from "@/components/pin-keypad";
-import { Badge } from "@/components/ui/badge";
 import { Store, Lock } from "lucide-react";
 
 export default function CajeroLoginPage() {
-  const [pin, setPin] = useState("");
+  const [_pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const router = useRouter();
 

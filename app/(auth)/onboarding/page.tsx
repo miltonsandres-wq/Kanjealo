@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { WalletPreview } from "@/components/wallet-preview";
 import { supabase } from "@/lib/supabase";
 import { generarSlug } from "@/lib/utils";
-import { CheckCircle2, Layout, Sparkles, Store } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();

@@ -603,7 +603,7 @@ export default function ConfiguracionPage() {
                   {s.mensaje_notificacion && (
                     <div className="flex items-start gap-2 p-3 bg-navy/3 rounded-xl border border-navy/5">
                       <Bell className="w-3.5 h-3.5 text-navy/30 mt-0.5 shrink-0" />
-                      <p className="text-xs text-navy/50 italic">"{s.mensaje_notificacion}"</p>
+                      <p className="text-xs text-navy/50 italic">&ldquo;{s.mensaje_notificacion}&rdquo;</p>
                     </div>
                   )}
                 </div>
