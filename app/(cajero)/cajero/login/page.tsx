@@ -47,9 +47,9 @@ export default function CajeroLoginPage() {
 
         {/* Keypad */}
         <div className="flex flex-col items-center">
-          <PinKeypad 
-            onComplete={handlePinComplete} 
-            error={error}
+          <PinKeypad
+            onComplete={handlePinComplete}
+            error={error ? "PIN incorrecto. Intenta de nuevo." : null}
           />
           
           {error && (

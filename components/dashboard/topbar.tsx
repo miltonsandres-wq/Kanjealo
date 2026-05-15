@@ -32,7 +32,7 @@ export function Topbar() {
             </p>
             <Badge variante="gris" tamaño="sm">Plan Pro</Badge>
           </div>
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
         </div>
       </div>
     </header>

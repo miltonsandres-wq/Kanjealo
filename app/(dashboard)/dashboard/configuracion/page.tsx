@@ -202,7 +202,7 @@ export default function ConfiguracionPage() {
       });
       const data = await res.json();
       if (data.sucursal) setSucursales(prev => [...prev, data.sucursal]);
-    } else if (modalSucursal && modalSucursal !== "nueva") {
+    } else if (modalSucursal && typeof modalSucursal === "object") {
       const res = await fetch("/api/sucursales", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
