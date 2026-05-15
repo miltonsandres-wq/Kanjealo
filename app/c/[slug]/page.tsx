@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle2, Phone, User, Gift, Star } from "lucide-react";
+import { CheckCircle2, Phone, User, Gift, Star, Store } from "lucide-react";
 import { KanjealoLogo } from "@/components/logo";
 
 interface Negocio {
@@ -82,9 +82,13 @@ export default function RegistroClientePage() {
               <CheckCircle2 className="w-9 h-9 text-green-500" />
             </div>
             <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-3" style={{ backgroundColor: color + "15", color }}>
+                <Store className="w-3 h-3" />
+                {negocio.nombre}
+              </div>
               <h2 className="text-2xl font-extrabold text-navy">¡Bienvenido!</h2>
               <p className="text-navy/50 text-sm mt-1">
-                Te registraste en <strong>{negocio.nombre_programa}</strong>
+                Ya eres parte de <strong>{negocio.nombre_programa}</strong>
               </p>
             </div>
 
@@ -128,8 +132,16 @@ export default function RegistroClientePage() {
       {/* Hero */}
       <div className="px-6 pt-12 pb-8 text-center text-white space-y-4">
         <KanjealoLogo tamaño="md" variante="blanco" className="mx-auto" />
+
+        {negocio && (
+          <div className="inline-flex items-center gap-2 bg-white/20 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mt-4">
+            <Store className="w-3.5 h-3.5" />
+            {negocio.nombre}
+          </div>
+        )}
+
         <div>
-          <h1 className="text-3xl font-extrabold mt-6">
+          <h1 className="text-3xl font-extrabold">
             {negocio?.nombre_programa ?? "Programa de Lealtad"}
           </h1>
           <p className="text-white/70 mt-2 text-sm">
@@ -148,7 +160,7 @@ export default function RegistroClientePage() {
       {/* Formulario */}
       <div className="flex-1 bg-white rounded-t-[32px] px-6 py-8 space-y-5">
         <div>
-          <h2 className="text-xl font-bold text-navy">Crea tu cuenta</h2>
+          <h2 className="text-xl font-bold text-navy">Únete a {negocio?.nombre ?? "este programa"}</h2>
           <p className="text-sm text-navy/40 mt-1">Solo necesitas tu nombre y teléfono.</p>
         </div>
 

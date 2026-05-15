@@ -135,7 +135,7 @@ export default function QRPage() {
   const { negocio } = useNegocio();
 
   const slug = negocio?.slug ?? "";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? (typeof window !== "undefined" ? window.location.origin : "https://kanjealo.hn");
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
   const qrUrl = slug ? `${appUrl}/c/${slug}` : `${appUrl}/c/...`;
 
   const [template,       setTemplate]       = useState<TemplateId>("vertical");
