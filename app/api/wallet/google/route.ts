@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     supabase.from("clientes").select("id, nombre, total_sellos").eq("id", client_id).maybeSingle(),
     supabase
       .from("negocios")
-      .select("id, nombre, nombre_programa, color_marca, sellos_requeridos")
+      .select("id, nombre, nombre_programa, color_marca, sellos_requeridos, descripcion_premio")
       .eq("id", business_id)
       .maybeSingle(),
     supabase
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       totalSellos: cliente.total_sellos ?? 0,
       sellosRequeridos: negocio.sellos_requeridos ?? 10,
       model: loyaltyConfig?.model ?? "stamps",
+      descripcionPremio: negocio.descripcion_premio ?? undefined,
       sucursales: sucursales ?? [],
     });
 

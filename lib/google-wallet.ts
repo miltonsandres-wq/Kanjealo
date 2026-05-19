@@ -23,12 +23,13 @@ interface PassParams {
   totalSellos: number;
   sellosRequeridos: number;
   model: string;
+  descripcionPremio?: string;
   sucursales: Sucursal[];
 }
 
-function buildStampRow(filled: number, total: number): string {
-  const rows: string[] = [];
+function buildStampVisual(filled: number, total: number): string {
   const perRow = 5;
+  const rows: string[] = [];
   for (let i = 0; i < total; i += perRow) {
     const row: string[] = [];
     for (let j = i; j < Math.min(i + perRow, total); j++) {
@@ -39,14 +40,26 @@ function buildStampRow(filled: number, total: number): string {
   return rows.join("\n");
 }
 
+function safeId(str: string): string {
+  return str.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
 function buildLoyaltyObject(params: PassParams, classId: string, objectId: string) {
-  const { businessNombre, programaNombre, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
+  const { clientId, clienteNombre, totalSellos, sellosRequeridos, model, descripcionPremio } = params;
 
   const labelPuntos = model === "cashback" ? "Cashback"
     : model === "points" || model === "tiers" ? "Puntos"
     : "Sellos";
 
-  const stampVisual = buildStampRow(totalSellos, sellosRequeridos);
+  const stampVisual = buildStampVisual(totalSellos, sellosRequeridos);
+
+  const textModules: { header: string; body: string; id: string }[] = [
+    { header: "Mis sellos", body: stampVisual, id: "sellos" },
+  ];
+
+  if (descripcionPremio) {
+    textModules.push({ header: "Premio", body: descripcionPremio, id: "premio" });
+  }
 
   return {
     id: objectId,
@@ -63,13 +76,7 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
       value: `kj:id:${clientId}`,
       alternateText: clienteNombre,
     },
-    textModulesData: [
-      { header: "Negocio", body: businessNombre, id: "negocio" },
-      { header: "Mis sellos", body: stampVisual, id: "sellos" },
-      ...(programaNombre && programaNombre !== businessNombre
-        ? [{ header: "Programa", body: programaNombre, id: "programa" }]
-        : []),
-    ],
+    textModulesData: textModules,
   };
 }
 
@@ -87,18 +94,17 @@ async function upsertLoyaltyClass(classId: string, params: PassParams): Promise<
   const token = await getAuthToken();
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
   const loyaltyClass = {
     id: classId,
-    issuerName: "Kanjealo",
+    issuerName: params.businessNombre,
     programName: params.programaNombre || params.businessNombre,
     hexBackgroundColor: color,
     reviewStatus: "UNDER_REVIEW",
     programLogo: {
       sourceUri: { uri: `${appUrl}/logos/kanjealo-icon-1024.png` },
-      contentDescription: { defaultValue: { language: "es", value: "Kanjealo" } },
+      contentDescription: { defaultValue: { language: "es", value: params.businessNombre } },
     },
   };
 
@@ -156,12 +162,13 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 }
 
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object }> {
-  const classId  = `${ISSUER_ID}.KANJEALO`;
-  const objectId = `${ISSUER_ID}.${params.clientId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  // Clase por negocio → cada negocio tiene su color y nombre propios
+  const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
+  const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
+
   const loyaltyObject = buildLoyaltyObject(params, classId, objectId);
 
-  // Pre-crear/actualizar clase y objeto via REST API
   await upsertLoyaltyClass(classId, params);
   await upsertLoyaltyObject(loyaltyObject, objectId);
 
