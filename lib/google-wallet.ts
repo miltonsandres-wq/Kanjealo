@@ -27,7 +27,7 @@ export function generarUrlGoogleWallet(params: PassParams): { url: string; paylo
   const { businessNombre, programaNombre, colorMarca, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
 
   const classId  = `${ISSUER_ID}.KANJEALO`;
-  const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9]/g, "_")}`;
 
   const labelPuntos = model === "cashback" ? "Cashback"
     : model === "points" || model === "tiers" ? "Puntos"
@@ -39,6 +39,7 @@ export function generarUrlGoogleWallet(params: PassParams): { url: string; paylo
     id: classId,
     issuerName: "Kanjealo",
     programName: programaNombre || businessNombre,
+    reviewStatus: "UNDER_REVIEW",
     hexBackgroundColor: colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`,
   };
 
