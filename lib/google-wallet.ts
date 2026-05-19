@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { GoogleAuth } from "google-auth-library";
+import { createClient } from "@supabase/supabase-js";
 
 const ISSUER_ID    = process.env.GOOGLE_WALLET_ISSUER_ID!;
 const CLIENT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL!;
@@ -161,13 +162,71 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
   }
 }
 
+async function generateAndUploadCardImage(
+  params: PassParams,
+  objectId: string,
+  appUrl: string,
+): Promise<string | null> {
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) return null;
+
+    const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
+    const encoded = Buffer.from(JSON.stringify({
+      s: params.totalSellos,
+      r: params.sellosRequeridos,
+      c: color,
+      n: params.programaNombre || params.businessNombre,
+    })).toString("base64url");
+
+    const imageRes = await fetch(`${appUrl}/api/wallet/card-image/${encoded}`);
+    if (!imageRes.ok) return null;
+
+    const buffer = Buffer.from(await imageRes.arrayBuffer());
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceKey,
+      { auth: { persistSession: false } },
+    );
+
+    const fileName = `${objectId.replace(/\./g, "_")}.png`;
+    const { error } = await supabase.storage
+      .from("wallet-cards")
+      .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "3600" });
+
+    if (error) {
+      console.error("[wallet] Storage upload:", error.message);
+      return null;
+    }
+
+    const { data } = supabase.storage.from("wallet-cards").getPublicUrl(fileName);
+    return data.publicUrl;
+  } catch (e) {
+    console.error("[wallet] generateAndUploadCardImage:", e);
+    return null;
+  }
+}
+
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object }> {
   // Clase por negocio → cada negocio tiene su color y nombre propios
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const loyaltyObject = buildLoyaltyObject(params, classId, objectId);
+  const heroImageUrl = await generateAndUploadCardImage(params, objectId, appUrl);
+
+  const loyaltyObject = heroImageUrl
+    ? {
+        ...buildLoyaltyObject(params, classId, objectId),
+        heroImage: {
+          sourceUri: { uri: heroImageUrl },
+          contentDescription: {
+            defaultValue: { language: "es", value: `${params.totalSellos} de ${params.sellosRequeridos} sellos` },
+          },
+        },
+      }
+    : buildLoyaltyObject(params, classId, objectId);
 
   await upsertLoyaltyClass(classId, params);
   await upsertLoyaltyObject(loyaltyObject, objectId);
