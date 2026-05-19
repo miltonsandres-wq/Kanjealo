@@ -39,7 +39,6 @@ export function generarUrlGoogleWallet(params: PassParams): { url: string; paylo
     id: classId,
     issuerName: "Kanjealo",
     programName: programaNombre || businessNombre,
-    reviewStatus: "UNDER_REVIEW",
     hexBackgroundColor: colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`,
   };
 
