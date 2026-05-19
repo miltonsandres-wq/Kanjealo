@@ -24,14 +24,10 @@ interface PassParams {
 }
 
 export function generarUrlGoogleWallet(params: PassParams): string {
-  const {
-    businessNombre, programaNombre, colorMarca,
-    clientId, clienteNombre, totalSellos, sellosRequeridos, model, sucursales,
-  } = params;
+  const { businessNombre, programaNombre, colorMarca, clientId, clienteNombre, totalSellos, sellosRequeridos, model, sucursales } = params;
 
-  // Clase compartida pre-creada en Google Wallet Console
   const classId  = `${ISSUER_ID}.KANJEALO`;
-  const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9]/g, "")}`;
+  const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
   const color = colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`;
 
@@ -71,28 +67,14 @@ export function generarUrlGoogleWallet(params: PassParams): string {
         id: "negocio",
       },
       {
-        header: programaNombre || businessNombre,
+        header: "Progreso",
         body: `${totalSellos} de ${sellosRequeridos} ${labelPuntos.toLowerCase()}`,
         id: "progreso",
       },
+      ...(programaNombre && programaNombre !== businessNombre
+        ? [{ header: "Programa", body: programaNombre, id: "programa" }]
+        : []),
     ],
-    infoModuleData: {
-      showLastUpdateTime: "true",
-      labelValueRows: [
-        {
-          columns: [
-            { label: "Programa", value: programaNombre || businessNombre },
-            { label: "Negocio",  value: businessNombre },
-          ],
-        },
-        {
-          columns: [
-            { label: labelPuntos,   value: `${totalSellos}` },
-            { label: "Para premio", value: `${sellosRequeridos}` },
-          ],
-        },
-      ],
-    },
     hexBackgroundColor: color,
     ...(ubicaciones.length > 0 && { locations: ubicaciones }),
   };
