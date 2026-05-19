@@ -226,6 +226,28 @@ async function generateAndUploadCardImage(
   }
 }
 
+export async function actualizarPaseGoogleWallet(params: PassParams): Promise<void> {
+  const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
+  const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
+
+  const heroImageUrl = await generateAndUploadCardImage(params, objectId, appUrl);
+
+  const loyaltyObject = heroImageUrl
+    ? {
+        ...buildLoyaltyObject(params, classId, objectId),
+        heroImage: {
+          sourceUri: { uri: heroImageUrl },
+          contentDescription: {
+            defaultValue: { language: "es", value: `${params.totalSellos} de ${params.sellosRequeridos} sellos` },
+          },
+        },
+      }
+    : buildLoyaltyObject(params, classId, objectId);
+
+  await upsertLoyaltyObject(loyaltyObject, objectId);
+}
+
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object; heroImageUrl: string | null }> {
   // Clase por negocio → cada negocio tiene su color y nombre propios
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;

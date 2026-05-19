@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { actualizarPaseGoogleWallet } from "@/lib/google-wallet";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Obtener datos actuales del cliente y negocio
-    const [{ data: cliente }, { data: negocio }] = await Promise.all([
+    const [{ data: cliente }, { data: negocio }, { data: loyaltyConfig }] = await Promise.all([
       supabase
         .from("clientes")
         .select("id, nombre, total_sellos, total_canjes")
@@ -25,9 +26,14 @@ export async function POST(req: NextRequest) {
         .single(),
       supabase
         .from("negocios")
-        .select("sellos_requeridos")
+        .select("id, nombre, nombre_programa, color_marca, sellos_requeridos, descripcion_premio")
         .eq("id", business_id)
         .single(),
+      supabase
+        .from("loyalty_config")
+        .select("model")
+        .eq("business_id", business_id)
+        .maybeSingle(),
     ]);
 
     if (!cliente || !negocio) {
@@ -51,8 +57,20 @@ export async function POST(req: NextRequest) {
     const sellos_requeridos = negocio.sellos_requeridos;
     const premio_listo = nuevos_sellos >= sellos_requeridos;
 
+    const walletParams = {
+      businessId: business_id,
+      businessNombre: negocio.nombre,
+      programaNombre: negocio.nombre_programa ?? negocio.nombre,
+      colorMarca: negocio.color_marca ?? "#FF5C3A",
+      clientId: customer_id,
+      clienteNombre: cliente.nombre,
+      sellosRequeridos: sellos_requeridos,
+      model: loyaltyConfig?.model ?? "stamps",
+      descripcionPremio: negocio.descripcion_premio ?? undefined,
+      sucursales: [],
+    };
+
     if (premio_listo) {
-      // Registrar canje y resetear sellos
       await supabase.from("canjes").insert({ customer_id, business_id });
       await supabase
         .from("clientes")
@@ -63,6 +81,9 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", customer_id);
 
+      // Actualizar pase Google Wallet en background
+      actualizarPaseGoogleWallet({ ...walletParams, totalSellos: 0 }).catch(() => {});
+
       return NextResponse.json({
         nuevos_sellos: 0,
         sellos_requeridos,
@@ -71,7 +92,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Solo actualizar sellos
     await supabase
       .from("clientes")
       .update({
@@ -79,6 +99,9 @@ export async function POST(req: NextRequest) {
         ultima_visita: new Date().toISOString(),
       })
       .eq("id", customer_id);
+
+    // Actualizar pase Google Wallet en background
+    actualizarPaseGoogleWallet({ ...walletParams, totalSellos: nuevos_sellos }).catch(() => {});
 
     return NextResponse.json({
       nuevos_sellos,
