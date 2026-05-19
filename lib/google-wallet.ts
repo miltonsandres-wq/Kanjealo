@@ -23,7 +23,7 @@ interface PassParams {
   sucursales: Sucursal[];
 }
 
-export function generarUrlGoogleWallet(params: PassParams): string {
+export function generarUrlGoogleWallet(params: PassParams): { url: string; payload: object } {
   const { businessNombre, programaNombre, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
 
   const classId  = `${ISSUER_ID}.KANJEALO`;
@@ -79,5 +79,5 @@ export function generarUrlGoogleWallet(params: PassParams): string {
   };
 
   const token = jwt.sign(jwtPayload, PRIVATE_KEY, { algorithm: "RS256" });
-  return `https://pay.google.com/gp/v/save/${token}`;
+  return { url: `https://pay.google.com/gp/v/save/${token}`, payload: jwtPayload };
 }

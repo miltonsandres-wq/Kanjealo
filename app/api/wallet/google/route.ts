@@ -53,8 +53,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Negocio no encontrado", business_id }, { status: 404 });
   }
 
+  const debug = searchParams.get("debug") === "1";
+
   try {
-    const url = generarUrlGoogleWallet({
+    const { url, payload } = generarUrlGoogleWallet({
       businessId: negocio.id,
       businessNombre: negocio.nombre,
       programaNombre: negocio.nombre_programa ?? negocio.nombre,
@@ -67,6 +69,7 @@ export async function GET(req: NextRequest) {
       sucursales: sucursales ?? [],
     });
 
+    if (debug) return NextResponse.json({ payload });
     return NextResponse.redirect(url);
   } catch (err: any) {
     return NextResponse.json({ error: err.message ?? "Error generando URL" }, { status: 500 });
