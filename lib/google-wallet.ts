@@ -24,16 +24,10 @@ interface PassParams {
 }
 
 export function generarUrlGoogleWallet(params: PassParams): string {
-  const { businessNombre, programaNombre, colorMarca, clientId, clienteNombre, totalSellos, sellosRequeridos, model, sucursales } = params;
+  const { businessNombre, programaNombre, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
 
   const classId  = `${ISSUER_ID}.KANJEALO`;
   const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-
-  const color = colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`;
-
-  const ubicaciones = sucursales
-    .filter(s => s.latitud != null && s.longitud != null)
-    .map(s => ({ latitude: s.latitud as number, longitude: s.longitud as number }));
 
   const labelPuntos = model === "cashback" ? "Cashback"
     : model === "points" || model === "tiers" ? "Puntos"
@@ -75,8 +69,6 @@ export function generarUrlGoogleWallet(params: PassParams): string {
         ? [{ header: "Programa", body: programaNombre, id: "programa" }]
         : []),
     ],
-    hexBackgroundColor: color,
-    ...(ubicaciones.length > 0 && { locations: ubicaciones }),
   };
 
   const jwtPayload = {
