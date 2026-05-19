@@ -18,17 +18,17 @@ export async function GET(req: NextRequest) {
   }
 
   const [
-    { data: cliente },
-    { data: negocio },
+    { data: cliente, error: errCliente },
+    { data: negocio, error: errNegocio },
     { data: loyaltyConfig },
     { data: sucursales },
   ] = await Promise.all([
-    supabase.from("clientes").select("id, nombre, total_sellos").eq("id", client_id).single(),
+    supabase.from("clientes").select("id, nombre, total_sellos").eq("id", client_id).maybeSingle(),
     supabase
       .from("negocios")
       .select("id, nombre, nombre_programa, color_marca, sellos_requeridos")
       .eq("id", business_id)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("loyalty_config")
       .select("model")
@@ -41,8 +41,16 @@ export async function GET(req: NextRequest) {
       .eq("activa", true),
   ]);
 
-  if (!cliente || !negocio) {
-    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+  if (errCliente || errNegocio) {
+    console.error("[wallet/google] DB error:", { errCliente, errNegocio, client_id, business_id });
+    return NextResponse.json({ error: "Error de base de datos", clienteErr: errCliente?.message, negocioErr: errNegocio?.message }, { status: 500 });
+  }
+
+  if (!cliente) {
+    return NextResponse.json({ error: "Cliente no encontrado", client_id }, { status: 404 });
+  }
+  if (!negocio) {
+    return NextResponse.json({ error: "Negocio no encontrado", business_id }, { status: 404 });
   }
 
   try {
