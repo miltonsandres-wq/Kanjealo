@@ -25,7 +25,7 @@ interface PassParams {
 
 export function generarUrlGoogleWallet(params: PassParams): string {
   const {
-    businessId, businessNombre, programaNombre, colorMarca,
+    businessNombre, programaNombre, colorMarca,
     clientId, clienteNombre, totalSellos, sellosRequeridos, model, sucursales,
   } = params;
 
