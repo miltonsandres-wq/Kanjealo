@@ -4,22 +4,21 @@ export const runtime = "edge";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const sellos    = Math.min(parseInt(searchParams.get("sellos")    ?? "0"),  50);
-  const requeridos = Math.min(parseInt(searchParams.get("requeridos") ?? "10"), 50);
-  const color     = searchParams.get("color")  ?? "#FF5C3A";
-  const nombre    = searchParams.get("nombre") ?? "Programa de Lealtad";
+  const sellos    = Math.min(parseInt(searchParams.get("s") ?? "0"), 50);
+  const requeridos = Math.min(parseInt(searchParams.get("r") ?? "10"), 50);
+  const rawColor  = searchParams.get("c") ?? "FF5C3A";
+  const nombre    = searchParams.get("n") ?? "Programa de Lealtad";
+  const color     = rawColor.startsWith("#") ? rawColor : `#${rawColor}`;
 
   const stamps = Array.from({ length: requeridos }, (_, i) => i < sellos);
-
-  // Layout: max 10 per row
-  const perRow = Math.min(requeridos, 10);
+  const perRow = requeridos <= 10 ? 5 : requeridos <= 20 ? 7 : 10;
   const rows: boolean[][] = [];
   for (let i = 0; i < stamps.length; i += perRow) {
     rows.push(stamps.slice(i, i + perRow));
   }
 
-  const stampSize = requeridos <= 10 ? 52 : requeridos <= 20 ? 42 : 34;
-  const gap       = requeridos <= 10 ? 10 : 8;
+  const stampSize = requeridos <= 10 ? 48 : requeridos <= 20 ? 38 : 30;
+  const gap = 8;
 
   return new ImageResponse(
     (
@@ -31,19 +30,20 @@ export async function GET(req: Request) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: `linear-gradient(135deg, ${color}dd, ${color})`,
-          padding: "32px 40px",
-          gap: 20,
+          backgroundColor: color,
+          padding: "28px 40px",
+          gap: 16,
         }}
       >
-        {/* Business name */}
+        {/* Business / program name */}
         <div
           style={{
             color: "white",
-            fontSize: 32,
+            fontSize: 30,
             fontWeight: 800,
             letterSpacing: -0.5,
-            textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            textShadow: "0 2px 6px rgba(0,0,0,0.25)",
+            textAlign: "center",
           }}
         >
           {nombre}
@@ -60,15 +60,13 @@ export async function GET(req: Request) {
                     width: stampSize,
                     height: stampSize,
                     borderRadius: "50%",
-                    background: filled
-                      ? "rgba(255,255,255,0.95)"
-                      : "rgba(255,255,255,0.20)",
-                    border: `2.5px solid rgba(255,255,255,${filled ? "0.9" : "0.5"})`,
+                    background: filled ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.18)",
+                    border: `2px solid rgba(255,255,255,${filled ? "0.85" : "0.45"})`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: stampSize * 0.52,
-                    boxShadow: filled ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+                    fontSize: Math.round(stampSize * 0.5),
+                    boxShadow: filled ? "0 2px 8px rgba(0,0,0,0.18)" : "none",
                   }}
                 >
                   {filled ? "★" : ""}
@@ -78,11 +76,11 @@ export async function GET(req: Request) {
           ))}
         </div>
 
-        {/* Progress text */}
+        {/* Progress */}
         <div
           style={{
-            color: "rgba(255,255,255,0.85)",
-            fontSize: 18,
+            color: "rgba(255,255,255,0.80)",
+            fontSize: 16,
             fontWeight: 600,
           }}
         >
