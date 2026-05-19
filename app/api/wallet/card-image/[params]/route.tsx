@@ -39,6 +39,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ params:
         >
           <div
             style={{
+              display: "flex",
               color: "white",
               fontSize: 30,
               fontWeight: 800,
@@ -75,8 +76,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ params:
             ))}
           </div>
 
-          <div style={{ color: "rgba(255,255,255,0.80)", fontSize: 16, fontWeight: 600 }}>
-            {sellos} de {requeridos} sellos acumulados
+          <div style={{ display: "flex", color: "rgba(255,255,255,0.80)", fontSize: 16, fontWeight: 600 }}>
+            {`${sellos} de ${requeridos} sellos acumulados`}
           </div>
         </div>
       ),
