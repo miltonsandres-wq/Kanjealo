@@ -147,14 +147,22 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object }> {
   const classId  = `${ISSUER_ID}.KANJEALO`;
   const objectId = `${ISSUER_ID}.${params.clientId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const loyaltyObject = buildLoyaltyObject(params, classId, objectId);
+  const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
+  const cardImageUrl = `${appUrl}/api/wallet/card-image?sellos=${params.totalSellos}&requeridos=${params.sellosRequeridos}&color=${encodeURIComponent(color)}&nombre=${encodeURIComponent(params.programaNombre || params.businessNombre)}`;
+
+  const loyaltyObject = {
+    ...buildLoyaltyObject(params, classId, objectId),
+    heroImage: {
+      sourceUri: { uri: cardImageUrl },
+      contentDescription: { defaultValue: { language: "es", value: `${params.totalSellos} de ${params.sellosRequeridos} sellos` } },
+    },
+  };
 
   // Pre-crear/actualizar clase y objeto via REST API
   await upsertLoyaltyClass(classId, params);
   await upsertLoyaltyObject(loyaltyObject, objectId);
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
   const jwtPayload = {
     iss: CLIENT_EMAIL,
