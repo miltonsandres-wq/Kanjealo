@@ -38,19 +38,15 @@ export function generarUrlGoogleWallet(params: PassParams): string {
   const loyaltyObject = {
     id: objectId,
     classId,
-    state: "active",
+    state: "ACTIVE",
     accountId: clientId,
     accountName: clienteNombre,
     loyaltyPoints: {
       balance: { string: `${totalSellos}` },
       label: labelPuntos,
     },
-    secondaryLoyaltyPoints: {
-      balance: { string: `${sellosRequeridos}` },
-      label: "Meta",
-    },
     barcode: {
-      type: "qrCode",
+      type: "QR_CODE",
       value: `kj:id:${clientId}`,
       alternateText: clienteNombre,
     },
