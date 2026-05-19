@@ -167,23 +167,38 @@ async function generateAndUploadCardImage(
   objectId: string,
   appUrl: string,
 ): Promise<string | null> {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    console.error("[wallet/image] SUPABASE_SERVICE_ROLE_KEY no configurado");
+    return null;
+  }
+
+  const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
+  const encoded = Buffer.from(JSON.stringify({
+    s: params.totalSellos,
+    r: params.sellosRequeridos,
+    c: color,
+    n: params.programaNombre || params.businessNombre,
+  })).toString("base64url");
+
+  const imageUrl = `${appUrl}/api/wallet/card-image/${encoded}`;
+  console.log("[wallet/image] Generando imagen:", imageUrl);
+
+  let buffer: Buffer;
   try {
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceKey) return null;
+    const imageRes = await fetch(imageUrl);
+    if (!imageRes.ok) {
+      console.error("[wallet/image] Fetch imagen falló:", imageRes.status, await imageRes.text());
+      return null;
+    }
+    buffer = Buffer.from(await imageRes.arrayBuffer());
+    console.log("[wallet/image] Imagen generada, bytes:", buffer.length);
+  } catch (e) {
+    console.error("[wallet/image] Error fetch imagen:", e);
+    return null;
+  }
 
-    const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
-    const encoded = Buffer.from(JSON.stringify({
-      s: params.totalSellos,
-      r: params.sellosRequeridos,
-      c: color,
-      n: params.programaNombre || params.businessNombre,
-    })).toString("base64url");
-
-    const imageRes = await fetch(`${appUrl}/api/wallet/card-image/${encoded}`);
-    if (!imageRes.ok) return null;
-
-    const buffer = Buffer.from(await imageRes.arrayBuffer());
-
+  try {
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       serviceKey,
@@ -191,19 +206,22 @@ async function generateAndUploadCardImage(
     );
 
     const fileName = `${objectId.replace(/\./g, "_")}.png`;
+    console.log("[wallet/image] Subiendo a Supabase Storage:", fileName);
+
     const { error } = await supabase.storage
       .from("wallet-cards")
       .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "3600" });
 
     if (error) {
-      console.error("[wallet] Storage upload:", error.message);
+      console.error("[wallet/image] Error upload Supabase:", error.message);
       return null;
     }
 
     const { data } = supabase.storage.from("wallet-cards").getPublicUrl(fileName);
+    console.log("[wallet/image] URL pública:", data.publicUrl);
     return data.publicUrl;
   } catch (e) {
-    console.error("[wallet] generateAndUploadCardImage:", e);
+    console.error("[wallet/image] Error Supabase Storage:", e);
     return null;
   }
 }
