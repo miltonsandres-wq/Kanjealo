@@ -208,7 +208,7 @@ async function generateAndUploadCardImage(
   }
 }
 
-export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object }> {
+export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object; heroImageUrl: string | null }> {
   // Clase por negocio → cada negocio tiene su color y nombre propios
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
@@ -243,5 +243,5 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
   };
 
   const token = jwt.sign(jwtPayload, PRIVATE_KEY, { algorithm: "RS256" });
-  return { url: `https://pay.google.com/gp/v/save/${token}`, payload: jwtPayload };
+  return { url: `https://pay.google.com/gp/v/save/${token}`, payload: jwtPayload, heroImageUrl };
 }
