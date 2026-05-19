@@ -24,7 +24,7 @@ interface PassParams {
 }
 
 export function generarUrlGoogleWallet(params: PassParams): { url: string; payload: object } {
-  const { businessNombre, programaNombre, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
+  const { businessNombre, programaNombre, colorMarca, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
 
   const classId  = `${ISSUER_ID}.KANJEALO`;
   const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -34,6 +34,14 @@ export function generarUrlGoogleWallet(params: PassParams): { url: string; paylo
     : "Sellos";
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
+
+  const loyaltyClass = {
+    id: classId,
+    issuerName: "Kanjealo",
+    programName: programaNombre || businessNombre,
+    reviewStatus: "UNDER_REVIEW",
+    hexBackgroundColor: colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`,
+  };
 
   const loyaltyObject = {
     id: objectId,
@@ -74,6 +82,7 @@ export function generarUrlGoogleWallet(params: PassParams): { url: string; paylo
     iat: Math.floor(Date.now() / 1000),
     origins: [appUrl],
     payload: {
+      loyaltyClasses: [loyaltyClass],
       loyaltyObjects: [loyaltyObject],
     },
   };
