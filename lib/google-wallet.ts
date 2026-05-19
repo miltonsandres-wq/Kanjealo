@@ -205,7 +205,7 @@ async function generateAndUploadCardImage(
       { auth: { persistSession: false } },
     );
 
-    const fileName = `${objectId.replace(/\./g, "_")}.png`;
+    const fileName = `${objectId.replace(/\./g, "_")}_${params.totalSellos}.png`;
     console.log("[wallet/image] Subiendo a Supabase Storage:", fileName);
 
     const { error } = await supabase.storage
