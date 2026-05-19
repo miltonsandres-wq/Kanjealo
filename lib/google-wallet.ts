@@ -168,10 +168,13 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
   const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
-  const cardImageUrl = `${appUrl}/api/wallet/card-image`
-    + `?s=${params.totalSellos}&r=${params.sellosRequeridos}`
-    + `&c=${color}`
-    + `&n=${encodeURIComponent(params.programaNombre || params.businessNombre)}`;
+  const imageParams = Buffer.from(JSON.stringify({
+    s: params.totalSellos,
+    r: params.sellosRequeridos,
+    c: color,
+    n: params.programaNombre || params.businessNombre,
+  })).toString("base64url");
+  const cardImageUrl = `${appUrl}/api/wallet/card-image/${imageParams}`;
 
   const loyaltyObject = {
     ...buildLoyaltyObject(params, classId, objectId),
