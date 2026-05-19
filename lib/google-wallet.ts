@@ -72,14 +72,44 @@ async function getAuthToken(): Promise<string> {
   return tokenRes.token!;
 }
 
-async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Promise<void> {
+async function upsertLoyaltyClass(classId: string, params: PassParams): Promise<void> {
   const token = await getAuthToken();
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
+
+  const loyaltyClass = {
+    id: classId,
+    issuerName: "Kanjealo",
+    programName: params.programaNombre || params.businessNombre,
+    hexBackgroundColor: color,
+    reviewStatus: "UNDER_REVIEW",
   };
 
-  // Try to GET — if exists, PATCH; if not, POST
+  const getRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, { headers });
+
+  if (getRes.status === 404) {
+    const postRes = await fetch(`${WALLET_API}/loyaltyClass`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(loyaltyClass),
+    });
+    if (!postRes.ok) {
+      const err = await postRes.json();
+      throw new Error(`Error creando clase: ${JSON.stringify(err)}`);
+    }
+  } else if (getRes.ok) {
+    await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(loyaltyClass),
+    });
+  }
+}
+
+async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Promise<void> {
+  const token = await getAuthToken();
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
   const getRes = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`, { headers });
 
   if (getRes.status === 404) {
@@ -114,7 +144,8 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
 
   const loyaltyObject = buildLoyaltyObject(params, classId, objectId);
 
-  // Pre-crear/actualizar el objeto via REST API
+  // Pre-crear/actualizar clase y objeto via REST API
+  await upsertLoyaltyClass(classId, params);
   await upsertLoyaltyObject(loyaltyObject, objectId);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
