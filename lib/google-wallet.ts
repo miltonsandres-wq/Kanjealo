@@ -26,12 +26,27 @@ interface PassParams {
   sucursales: Sucursal[];
 }
 
+function buildStampRow(filled: number, total: number): string {
+  const rows: string[] = [];
+  const perRow = 5;
+  for (let i = 0; i < total; i += perRow) {
+    const row: string[] = [];
+    for (let j = i; j < Math.min(i + perRow, total); j++) {
+      row.push(j < filled ? "★" : "☆");
+    }
+    rows.push(row.join("  "));
+  }
+  return rows.join("\n");
+}
+
 function buildLoyaltyObject(params: PassParams, classId: string, objectId: string) {
   const { businessNombre, programaNombre, clientId, clienteNombre, totalSellos, sellosRequeridos, model } = params;
 
   const labelPuntos = model === "cashback" ? "Cashback"
     : model === "points" || model === "tiers" ? "Puntos"
     : "Sellos";
+
+  const stampVisual = buildStampRow(totalSellos, sellosRequeridos);
 
   return {
     id: objectId,
@@ -40,7 +55,7 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
     accountId: clientId,
     accountName: clienteNombre,
     loyaltyPoints: {
-      balance: { string: `${totalSellos}` },
+      balance: { string: `${totalSellos} / ${sellosRequeridos}` },
       label: labelPuntos,
     },
     barcode: {
@@ -50,11 +65,7 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
     },
     textModulesData: [
       { header: "Negocio", body: businessNombre, id: "negocio" },
-      {
-        header: "Progreso",
-        body: `${totalSellos} de ${sellosRequeridos} ${labelPuntos.toLowerCase()}`,
-        id: "progreso",
-      },
+      { header: "Mis sellos", body: stampVisual, id: "sellos" },
       ...(programaNombre && programaNombre !== businessNombre
         ? [{ header: "Programa", body: programaNombre, id: "programa" }]
         : []),
@@ -147,18 +158,7 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object }> {
   const classId  = `${ISSUER_ID}.KANJEALO`;
   const objectId = `${ISSUER_ID}.${params.clientId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
-
-  const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
-  const cardImageUrl = `${appUrl}/api/wallet/card-image?sellos=${params.totalSellos}&requeridos=${params.sellosRequeridos}&color=${encodeURIComponent(color)}&nombre=${encodeURIComponent(params.programaNombre || params.businessNombre)}`;
-
-  const loyaltyObject = {
-    ...buildLoyaltyObject(params, classId, objectId),
-    heroImage: {
-      sourceUri: { uri: cardImageUrl },
-      contentDescription: { defaultValue: { language: "es", value: `${params.totalSellos} de ${params.sellosRequeridos} sellos` } },
-    },
-  };
+  const loyaltyObject = buildLoyaltyObject(params, classId, objectId);
 
   // Pre-crear/actualizar clase y objeto via REST API
   await upsertLoyaltyClass(classId, params);
