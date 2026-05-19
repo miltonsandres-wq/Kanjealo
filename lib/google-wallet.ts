@@ -29,8 +29,8 @@ export function generarUrlGoogleWallet(params: PassParams): string {
     clientId, clienteNombre, totalSellos, sellosRequeridos, model, sucursales,
   } = params;
 
-  // IDs: solo alfanuméricos + puntos
-  const classId  = `${ISSUER_ID}.${businessId.replace(/[^a-zA-Z0-9]/g, "")}`;
+  // Clase compartida pre-creada en Google Wallet Console
+  const classId  = `${ISSUER_ID}.KANJEALO`;
   const objectId = `${ISSUER_ID}.${clientId.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   const color = colorMarca.startsWith("#") ? colorMarca : `#${colorMarca}`;
@@ -39,42 +39,28 @@ export function generarUrlGoogleWallet(params: PassParams): string {
     .filter(s => s.latitud != null && s.longitud != null)
     .map(s => ({ latitude: s.latitud as number, longitude: s.longitud as number }));
 
-  const labelPuntos = model === "cashback" ? "Cashback" : model === "points" || model === "tiers" ? "Puntos" : "Sellos";
+  const labelPuntos = model === "cashback" ? "Cashback"
+    : model === "points" || model === "tiers" ? "Puntos"
+    : "Sellos";
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.hn";
-
-  const loyaltyClass = {
-    id: classId,
-    issuerName: businessNombre,
-    programName: programaNombre || businessNombre,
-    reviewStatus: "UNDER_REVIEW",
-    hexBackgroundColor: color,
-    multipleDevicesAndHoldersAllowedStatus: "ONE_USER_ALL_DEVICES",
-    rewardsTiers: [
-      {
-        tier: "Preferente",
-        tierPoints: `${sellosRequeridos}`,
-      },
-    ],
-    ...(ubicaciones.length > 0 && { locations: ubicaciones }),
-  };
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
   const loyaltyObject = {
     id: objectId,
     classId,
-    state: "ACTIVE",
+    state: "active",
     accountId: clientId,
     accountName: clienteNombre,
     loyaltyPoints: {
-      balance: { int: totalSellos },
+      balance: { string: `${totalSellos}` },
       label: labelPuntos,
     },
     secondaryLoyaltyPoints: {
-      balance: { int: sellosRequeridos },
+      balance: { string: `${sellosRequeridos}` },
       label: "Meta",
     },
     barcode: {
-      type: "QR_CODE",
+      type: "qrCode",
       value: `kj:id:${clientId}`,
       alternateText: clienteNombre,
     },
@@ -85,11 +71,30 @@ export function generarUrlGoogleWallet(params: PassParams): string {
         id: "negocio",
       },
       {
-        header: "Progreso",
+        header: programaNombre || businessNombre,
         body: `${totalSellos} de ${sellosRequeridos} ${labelPuntos.toLowerCase()}`,
         id: "progreso",
       },
     ],
+    infoModuleData: {
+      showLastUpdateTime: "true",
+      labelValueRows: [
+        {
+          columns: [
+            { label: "Programa", value: programaNombre || businessNombre },
+            { label: "Negocio",  value: businessNombre },
+          ],
+        },
+        {
+          columns: [
+            { label: labelPuntos,   value: `${totalSellos}` },
+            { label: "Para premio", value: `${sellosRequeridos}` },
+          ],
+        },
+      ],
+    },
+    hexBackgroundColor: color,
+    ...(ubicaciones.length > 0 && { locations: ubicaciones }),
   };
 
   const jwtPayload = {
@@ -97,9 +102,8 @@ export function generarUrlGoogleWallet(params: PassParams): string {
     aud: "google",
     typ: "savetowallet",
     iat: Math.floor(Date.now() / 1000),
-    origins: [appUrl, "http://localhost:3000"],
+    origins: [appUrl],
     payload: {
-      loyaltyClasses: [loyaltyClass],
       loyaltyObjects: [loyaltyObject],
     },
   };
