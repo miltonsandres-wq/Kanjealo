@@ -164,39 +164,10 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 
 async function generateAndUploadCardImage(
   params: PassParams,
-  objectId: string,
   appUrl: string,
 ): Promise<string | null> {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
-    console.error("[wallet/image] SUPABASE_SERVICE_ROLE_KEY no configurado");
-    return null;
-  }
-
-  const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
-  const encoded = Buffer.from(JSON.stringify({
-    s: params.totalSellos,
-    r: params.sellosRequeridos,
-    c: color,
-    n: params.programaNombre || params.businessNombre,
-  })).toString("base64url");
-
-  const imageUrl = `${appUrl}/api/wallet/card-image/${encoded}`;
-  console.log("[wallet/image] Generando imagen:", imageUrl);
-
-  let buffer: Buffer;
-  try {
-    const imageRes = await fetch(imageUrl);
-    if (!imageRes.ok) {
-      console.error("[wallet/image] Fetch imagen falló:", imageRes.status, await imageRes.text());
-      return null;
-    }
-    buffer = Buffer.from(await imageRes.arrayBuffer());
-    console.log("[wallet/image] Imagen generada, bytes:", buffer.length);
-  } catch (e) {
-    console.error("[wallet/image] Error fetch imagen:", e);
-    return null;
-  }
+  if (!serviceKey) return null;
 
   try {
     const supabase = createClient(
@@ -205,23 +176,46 @@ async function generateAndUploadCardImage(
       { auth: { persistSession: false } },
     );
 
-    const fileName = `${objectId.replace(/\./g, "_")}_${params.totalSellos}.png`;
-    console.log("[wallet/image] Subiendo a Supabase Storage:", fileName);
+    // Imagen compartida por negocio + cantidad de sellos (no por cliente)
+    const fileName = `${safeId(params.businessId)}_${params.totalSellos}.png`;
+
+    // Verificar si ya existe para no regenerarla
+    const { data: existing } = await supabase.storage
+      .from("wallet-cards")
+      .list("", { search: fileName });
+
+    if (existing && existing.length > 0) {
+      const { data } = supabase.storage.from("wallet-cards").getPublicUrl(fileName);
+      return data.publicUrl;
+    }
+
+    // Generar imagen nueva
+    const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
+    const encoded = Buffer.from(JSON.stringify({
+      s: params.totalSellos,
+      r: params.sellosRequeridos,
+      c: color,
+      n: params.programaNombre || params.businessNombre,
+    })).toString("base64url");
+
+    const imageRes = await fetch(`${appUrl}/api/wallet/card-image/${encoded}`);
+    if (!imageRes.ok) return null;
+
+    const buffer = Buffer.from(await imageRes.arrayBuffer());
 
     const { error } = await supabase.storage
       .from("wallet-cards")
-      .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "3600" });
+      .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "60" });
 
     if (error) {
-      console.error("[wallet/image] Error upload Supabase:", error.message);
+      console.error("[wallet/image] Upload error:", error.message);
       return null;
     }
 
     const { data } = supabase.storage.from("wallet-cards").getPublicUrl(fileName);
-    console.log("[wallet/image] URL pública:", data.publicUrl);
     return data.publicUrl;
   } catch (e) {
-    console.error("[wallet/image] Error Supabase Storage:", e);
+    console.error("[wallet/image] Error:", e);
     return null;
   }
 }
@@ -231,7 +225,7 @@ export async function actualizarPaseGoogleWallet(params: PassParams): Promise<vo
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const heroImageUrl = await generateAndUploadCardImage(params, objectId, appUrl);
+  const heroImageUrl = await generateAndUploadCardImage(params, appUrl);
 
   const loyaltyObject = heroImageUrl
     ? {
@@ -254,7 +248,7 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const heroImageUrl = await generateAndUploadCardImage(params, objectId, appUrl);
+  const heroImageUrl = await generateAndUploadCardImage(params, appUrl);
 
   const loyaltyObject = heroImageUrl
     ? {
