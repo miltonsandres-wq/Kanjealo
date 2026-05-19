@@ -77,12 +77,18 @@ async function upsertLoyaltyClass(classId: string, params: PassParams): Promise<
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
+
   const loyaltyClass = {
     id: classId,
     issuerName: "Kanjealo",
     programName: params.programaNombre || params.businessNombre,
     hexBackgroundColor: color,
     reviewStatus: "UNDER_REVIEW",
+    programLogo: {
+      sourceUri: { uri: `${appUrl}/logos/kanjealo-icon-1024.png` },
+      contentDescription: { defaultValue: { language: "es", value: "Kanjealo" } },
+    },
   };
 
   const getRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, { headers });
