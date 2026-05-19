@@ -158,6 +158,7 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object }> {
   const classId  = `${ISSUER_ID}.KANJEALO`;
   const objectId = `${ISSUER_ID}.${params.clientId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
   const loyaltyObject = buildLoyaltyObject(params, classId, objectId);
 
   // Pre-crear/actualizar clase y objeto via REST API
