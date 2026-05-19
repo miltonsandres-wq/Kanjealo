@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   const debug = searchParams.get("debug") === "1";
 
   try {
-    const { url, payload } = generarUrlGoogleWallet({
+    const { url, payload } = await generarUrlGoogleWallet({
       businessId: negocio.id,
       businessNombre: negocio.nombre,
       programaNombre: negocio.nombre_programa ?? negocio.nombre,

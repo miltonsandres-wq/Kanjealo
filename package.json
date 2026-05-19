@@ -16,6 +16,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "google-auth-library": "^10.6.2",
     "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.14.0",
