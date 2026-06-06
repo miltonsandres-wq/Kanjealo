@@ -113,7 +113,6 @@ export function WalletPreview({
 }: WalletCardConfig) {
   const filledBg = stampFilledColor ?? 'rgba(255,255,255,0.95)';
   const emptyBorder = stampEmptyColor ?? 'rgba(255,255,255,0.25)';
-  const filledIconColor = stampFilledColor ? colorMarca : colorMarca;
   const cardStyle = getCardBackground(colorMarca, gradiente);
 
   return (
