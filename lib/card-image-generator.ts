@@ -1,4 +1,4 @@
-import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { createCanvas, loadImage, Path2D } from "@napi-rs/canvas";
 import { STAMP_ICONS } from "./stamp-icons";
 
 const W = 1032;
