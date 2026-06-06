@@ -18,6 +18,7 @@ interface PassParams {
   businessNombre: string;
   programaNombre: string;
   colorMarca: string;
+  logoUrl?: string;
   clientId: string;
   clienteNombre: string;
   totalSellos: number;
@@ -93,23 +94,32 @@ async function getAuthToken(): Promise<string> {
   return tokenRes.token!;
 }
 
-async function upsertLoyaltyClass(classId: string, params: PassParams): Promise<void> {
+async function upsertLoyaltyClass(classId: string, params: PassParams, classHeroUrl?: string | null): Promise<void> {
   const token = await getAuthToken();
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
   const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const loyaltyClass = {
+  const logoUri = params.logoUrl ?? `${appUrl}/logos/kanjealo-icon-1024.png`;
+
+  const loyaltyClass: Record<string, unknown> = {
     id: classId,
     issuerName: params.businessNombre,
     programName: params.programaNombre || params.businessNombre,
     hexBackgroundColor: color,
     reviewStatus: "UNDER_REVIEW",
     programLogo: {
-      sourceUri: { uri: `${appUrl}/logos/kanjealo-icon-1024.png` },
+      sourceUri: { uri: logoUri },
       contentDescription: { defaultValue: { language: "es", value: params.businessNombre } },
     },
   };
+
+  if (classHeroUrl) {
+    loyaltyClass.heroImage = {
+      sourceUri: { uri: classHeroUrl },
+      contentDescription: { defaultValue: { language: "es", value: params.programaNombre } },
+    };
+  }
 
   const getRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, { headers });
 
@@ -167,17 +177,18 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 async function generateAndUploadCardImage(
   params: PassParams,
   appUrl: string,
+  forClass = false,
 ): Promise<string | null> {
   try {
     const url = new URL(`${appUrl}/api/wallet/card-image`);
     url.searchParams.set("business_id", params.businessId);
-    url.searchParams.set("customer_id", params.clientId);
-
+    if (!forClass) {
+      url.searchParams.set("customer_id", params.clientId);
+    }
     const res = await fetch(url.toString());
     if (!res.ok) return null;
-
-    const json = await res.json();
-    return (json as { url?: string }).url ?? null;
+    const json = await res.json() as { url?: string };
+    return json.url ?? null;
   } catch (e) {
     console.error("[wallet/image] Error:", e);
     return null;
@@ -189,7 +200,7 @@ export async function actualizarPaseGoogleWallet(params: PassParams): Promise<vo
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const heroImageUrl = await generateAndUploadCardImage(params, appUrl);
+  const heroImageUrl = await generateAndUploadCardImage(params, appUrl, false);
 
   const loyaltyObject = heroImageUrl
     ? {
@@ -207,12 +218,15 @@ export async function actualizarPaseGoogleWallet(params: PassParams): Promise<vo
 }
 
 export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url: string; payload: object; heroImageUrl: string | null }> {
-  // Clase por negocio → cada negocio tiene su color y nombre propios
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const heroImageUrl = await generateAndUploadCardImage(params, appUrl);
+  // Generar imagen de clase (template sin sellos) e imagen de cliente (sellos actuales) en paralelo
+  const [classHeroUrl, heroImageUrl] = await Promise.all([
+    generateAndUploadCardImage(params, appUrl, true),
+    generateAndUploadCardImage(params, appUrl, false),
+  ]);
 
   const loyaltyObject = heroImageUrl
     ? {
@@ -226,7 +240,7 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
       }
     : buildLoyaltyObject(params, classId, objectId);
 
-  await upsertLoyaltyClass(classId, params);
+  await upsertLoyaltyClass(classId, params, classHeroUrl);
   await upsertLoyaltyObject(loyaltyObject, objectId);
 
   const jwtPayload = {

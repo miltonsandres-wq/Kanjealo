@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     supabase.from("clientes").select("id, nombre, total_sellos").eq("id", client_id).maybeSingle(),
     supabase
       .from("negocios")
-      .select("id, nombre, nombre_programa, color_marca, sellos_requeridos, descripcion_premio")
+      .select("id, nombre, nombre_programa, color_marca, sellos_requeridos, descripcion_premio, logo_url, stamp_icon, stamp_filled_color, stamp_empty_color")
       .eq("id", business_id)
       .maybeSingle(),
     supabase
@@ -61,6 +61,10 @@ export async function GET(req: NextRequest) {
       businessNombre: negocio.nombre,
       programaNombre: negocio.nombre_programa ?? negocio.nombre,
       colorMarca: negocio.color_marca ?? "#FF5C3A",
+      logoUrl: negocio.logo_url ?? undefined,
+      stampIcon: negocio.stamp_icon ?? "circle",
+      stampFilledColor: negocio.stamp_filled_color ?? undefined,
+      stampEmptyColor: negocio.stamp_empty_color ?? undefined,
       clientId: cliente.id,
       clienteNombre: cliente.nombre,
       totalSellos: cliente.total_sellos ?? 0,
