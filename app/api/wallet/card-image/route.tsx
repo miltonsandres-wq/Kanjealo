@@ -16,10 +16,8 @@ const W = 1032;
 const H = 336;
 
 // Tres zonas horizontales
-const ZONE_LEFT  = 0;    // 0 – 280
 const ZONE_MID_L = 280;
 const ZONE_MID_R = 720;
-const ZONE_RIGHT = 1032;
 
 // Grid 2 cols × 5 filas centrado en la zona central (280–720)
 const COLS       = 2;
@@ -86,6 +84,7 @@ function buildCardJSX(p: {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={p.logoUrl}
+          alt={p.nombreNegocio}
           width={70}
           height={70}
           style={{ position: "absolute", left: 35, top: 56, borderRadius: 14, objectFit: "cover" }}
