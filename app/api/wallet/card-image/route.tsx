@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { ImageResponse } from "next/og";
+import { v2 as cloudinary } from "cloudinary";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { STAMP_ICONS } from "@/lib/stamp-icons";
 
 export const runtime = "nodejs";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+});
 
 const W = 1032;
 const H = 336;
@@ -47,7 +54,7 @@ function buildCardJSX(p: {
         fontFamily: "Helvetica Neue, Helvetica, Arial, sans-serif",
       }}
     >
-      {/* Header */}
+      {/* Header: logo + nombre + badge */}
       <div style={{ display: "flex", alignItems: "center" }}>
         {p.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -99,7 +106,7 @@ function buildCardJSX(p: {
         </div>
       </div>
 
-      {/* Stamps */}
+      {/* Fila de sellos */}
       <div style={{ display: "flex", alignItems: "center" }}>
         {Array.from({ length: displayCount }, (_, i) => {
           const filled = i < p.totalSellos;
@@ -107,23 +114,23 @@ function buildCardJSX(p: {
             <div
               key={i}
               style={{
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 borderRadius: "50%",
                 backgroundColor: filled ? p.stampFilledColor : "transparent",
-                border: `2px solid ${filled ? p.stampFilledColor : "rgba(255,255,255,0.35)"}`,
+                border: `2px solid ${filled ? p.stampFilledColor : "rgba(255,255,255,0.4)"}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                marginRight: 9,
+                marginRight: 8,
               }}
             >
               <svg
-                width={20}
-                height={20}
+                width={22}
+                height={22}
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke={filled ? "white" : "rgba(255,255,255,0.4)"}
+                stroke={filled ? "white" : "rgba(255,255,255,0.45)"}
                 strokeWidth={1.8}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -134,7 +141,7 @@ function buildCardJSX(p: {
           );
         })}
         {p.sellosRequeridos > 10 && (
-          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginLeft: 4 }}>
+          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginLeft: 4 }}>
             +{p.sellosRequeridos - 10}
           </div>
         )}
@@ -142,8 +149,8 @@ function buildCardJSX(p: {
 
       {/* Footer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
-          {p.descripcionPremio ? `Premio: ${p.descripcionPremio}` : ""}
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          {p.descripcionPremio ? `🎁 ${p.descripcionPremio}` : ""}
         </div>
         <div
           style={{
@@ -203,31 +210,19 @@ export async function GET(req: Request) {
 
   const imageResponse = new ImageResponse(jsx, { width: W, height: H });
   const buffer = Buffer.from(await imageResponse.arrayBuffer());
+  const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
 
-  const fileName = customerId
-    ? `${businessId}/${customerId}-${Date.now()}.png`
-    : `${businessId}/hero.png`;
+  // Subir a Cloudinary (carpeta card-images, sobrescribir si ya existe)
+  const publicId = customerId
+    ? `card-images/${businessId}/${customerId}`
+    : `card-images/${businessId}/hero`;
 
-  if (customerId) {
-    const { data: existing } = await supabaseAdmin.storage
-      .from("card-images")
-      .list(businessId, { search: customerId });
-    if (existing && existing.length > 0) {
-      await supabaseAdmin.storage
-        .from("card-images")
-        .remove(existing.map((f) => `${businessId}/${f.name}`));
-    }
-  }
+  const uploadResult = await cloudinary.uploader.upload(base64, {
+    public_id: publicId,
+    overwrite: true,
+    format: "png",
+    invalidate: true,
+  });
 
-  const { error: uploadErr } = await supabaseAdmin.storage
-    .from("card-images")
-    .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "60" });
-
-  if (uploadErr) {
-    console.error("[card-image] Upload error:", uploadErr.message);
-    return NextResponse.json({ error: "Error subiendo imagen" }, { status: 500 });
-  }
-
-  const { data: urlData } = supabaseAdmin.storage.from("card-images").getPublicUrl(fileName);
-  return NextResponse.json({ url: urlData.publicUrl });
+  return NextResponse.json({ url: uploadResult.secure_url });
 }
