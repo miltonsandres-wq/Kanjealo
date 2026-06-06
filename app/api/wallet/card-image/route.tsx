@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_key:    process.env.CLOUDINARY_API_KEY!,
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 });
 
@@ -25,6 +25,20 @@ function darkenColor(hex: string, amount: number): string {
   return `#${d(r)}${d(g)}${d(b)}`;
 }
 
+// Posiciones diagonales fijas para hasta 10 sellos (x, y, size en px)
+const SCATTER: { x: number; y: number; s: number }[] = [
+  { x: 372, y: 226, s: 66 },
+  { x: 455, y: 138, s: 62 },
+  { x: 536, y: 52,  s: 64 },
+  { x: 620, y: 150, s: 60 },
+  { x: 702, y: 50,  s: 58 },
+  { x: 775, y: 166, s: 60 },
+  { x: 846, y: 62,  s: 56 },
+  { x: 904, y: 198, s: 58 },
+  { x: 950, y: 88,  s: 54 },
+  { x: 970, y: 248, s: 54 },
+];
+
 function buildCardJSX(p: {
   nombrePrograma: string;
   nombreNegocio: string;
@@ -36,46 +50,54 @@ function buildCardJSX(p: {
   sellosRequeridos: number;
   descripcionPremio?: string;
 }) {
-  const baseColor = p.colorMarca.startsWith("#") ? p.colorMarca : `#${p.colorMarca}`;
-  const darkColor = darkenColor(baseColor, 0.3);
-  const iconPath = STAMP_ICONS[p.stampIcon] ?? STAMP_ICONS.circle;
-  const displayCount = Math.min(p.sellosRequeridos, 10);
+  const base  = p.colorMarca.startsWith("#") ? p.colorMarca : `#${p.colorMarca}`;
+  const dark  = darkenColor(base, 0.28);
+  const path  = STAMP_ICONS[p.stampIcon] ?? STAMP_ICONS.circle;
+  const count = Math.min(p.sellosRequeridos, 10);
+  const spots = SCATTER.slice(0, count);
 
   return (
     <div
       style={{
         width: W,
         height: H,
-        background: `linear-gradient(130deg, ${baseColor} 0%, ${darkColor} 100%)`,
+        background: `linear-gradient(135deg, ${base} 0%, ${dark} 100%)`,
         display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        padding: "32px 44px 28px",
+        position: "relative",
+        overflow: "hidden",
         fontFamily: "Helvetica Neue, Helvetica, Arial, sans-serif",
       }}
     >
-      {/* Header: logo + nombre + badge */}
-      <div style={{ display: "flex", alignItems: "center" }}>
+      {/* ── Logo + nombre (top-left) ── */}
+      <div
+        style={{
+          position: "absolute",
+          left: 40,
+          top: 32,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
         {p.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={p.logoUrl}
-            width={58}
-            height={58}
-            style={{ borderRadius: 12, objectFit: "cover", marginRight: 16 }}
+            width={56}
+            height={56}
+            style={{ borderRadius: 12, objectFit: "cover", marginRight: 14 }}
           />
         ) : (
           <div
             style={{
-              width: 58,
-              height: 58,
+              width: 56,
+              height: 56,
               borderRadius: 12,
               backgroundColor: "rgba(255,255,255,0.2)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              marginRight: 16,
-              fontSize: 28,
+              marginRight: 14,
+              fontSize: 26,
               color: "white",
             }}
           >
@@ -83,86 +105,90 @@ function buildCardJSX(p: {
           </div>
         )}
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "white", lineHeight: 1.2 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "white", lineHeight: 1.2 }}>
             {p.nombreNegocio}
           </div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>
             {p.nombrePrograma}
           </div>
         </div>
-        <div
-          style={{
-            marginLeft: "auto",
-            backgroundColor: "rgba(255,255,255,0.18)",
-            borderRadius: 999,
-            padding: "5px 16px",
-            fontSize: 11,
-            fontWeight: 700,
-            color: "white",
-            letterSpacing: "0.08em",
-          }}
-        >
-          LEALTAD
-        </div>
       </div>
 
-      {/* Fila de sellos */}
-      <div style={{ display: "flex", alignItems: "center" }}>
-        {Array.from({ length: displayCount }, (_, i) => {
-          const filled = i < p.totalSellos;
-          return (
-            <div
-              key={i}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "50%",
-                backgroundColor: filled ? p.stampFilledColor : "transparent",
-                border: `2px solid ${filled ? p.stampFilledColor : "rgba(255,255,255,0.4)"}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 8,
-              }}
+      {/* ── LEALTAD badge (top-right) ── */}
+      <div
+        style={{
+          position: "absolute",
+          right: 38,
+          top: 32,
+          backgroundColor: "rgba(255,255,255,0.18)",
+          borderRadius: 999,
+          padding: "5px 16px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "white",
+          letterSpacing: "0.08em",
+          display: "flex",
+        }}
+      >
+        LEALTAD
+      </div>
+
+      {/* ── Premio (bottom-left) ── */}
+      {p.descripcionPremio ? (
+        <div
+          style={{
+            position: "absolute",
+            left: 40,
+            bottom: 26,
+            fontSize: 12,
+            color: "rgba(255,255,255,0.55)",
+            display: "flex",
+          }}
+        >
+          Premio: {p.descripcionPremio}
+        </div>
+      ) : null}
+
+      {/* ── Sellos dispersos en diagonal ── */}
+      {spots.map((pos, i) => {
+        const filled   = i < p.totalSellos;
+        const iconSize = Math.round(pos.s * 0.47);
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: pos.x,
+              top: pos.y,
+              width: pos.s,
+              height: pos.s,
+              borderRadius: "50%",
+              backgroundColor: filled
+                ? p.stampFilledColor
+                : "rgba(255,255,255,0.10)",
+              border: `2.5px solid ${
+                filled ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.32)"
+              }`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg
+              width={iconSize}
+              height={iconSize}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={filled ? "white" : "rgba(255,255,255,0.38)"}
+              strokeWidth={1.9}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width={22}
-                height={22}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={filled ? "white" : "rgba(255,255,255,0.45)"}
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d={iconPath} />
-              </svg>
-            </div>
-          );
-        })}
-        {p.sellosRequeridos > 10 && (
-          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginLeft: 4 }}>
-            +{p.sellosRequeridos - 10}
+              <path d={path} />
+            </svg>
           </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
-          {p.descripcionPremio ? `🎁 ${p.descripcionPremio}` : ""}
-        </div>
-        <div
-          style={{
-            color: "rgba(255,255,255,0.35)",
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.12em",
-          }}
-        >
-          KANJEALO
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -197,11 +223,11 @@ export async function GET(req: Request) {
   }
 
   const jsx = buildCardJSX({
-    nombrePrograma: negocio.nombre_programa,
-    nombreNegocio: negocio.nombre,
-    colorMarca: negocio.color_marca,
-    logoUrl: negocio.logo_url,
-    stampIcon: negocio.stamp_icon ?? "circle",
+    nombrePrograma:   negocio.nombre_programa,
+    nombreNegocio:    negocio.nombre,
+    colorMarca:       negocio.color_marca,
+    logoUrl:          negocio.logo_url,
+    stampIcon:        negocio.stamp_icon ?? "circle",
     stampFilledColor: negocio.stamp_filled_color ?? negocio.color_marca,
     totalSellos,
     sellosRequeridos: negocio.sellos_requeridos,
@@ -209,20 +235,19 @@ export async function GET(req: Request) {
   });
 
   const imageResponse = new ImageResponse(jsx, { width: W, height: H });
-  const buffer = Buffer.from(await imageResponse.arrayBuffer());
-  const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
+  const buffer  = Buffer.from(await imageResponse.arrayBuffer());
+  const base64  = `data:image/png;base64,${buffer.toString("base64")}`;
 
-  // Subir a Cloudinary (carpeta card-images, sobrescribir si ya existe)
   const publicId = customerId
     ? `card-images/${businessId}/${customerId}`
     : `card-images/${businessId}/hero`;
 
-  const uploadResult = await cloudinary.uploader.upload(base64, {
+  const result = await cloudinary.uploader.upload(base64, {
     public_id: publicId,
     overwrite: true,
-    format: "png",
+    format:    "png",
     invalidate: true,
   });
 
-  return NextResponse.json({ url: uploadResult.secure_url });
+  return NextResponse.json({ url: result.secure_url });
 }
