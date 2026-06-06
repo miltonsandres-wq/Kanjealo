@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Palette, Star, Settings2, Save, Undo2, Smartphone, Info } from "lucide-react";
+import { LogoUploader } from "@/components/dashboard/LogoUploader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import {
   type IconoSello,
   type GradienteCard,
   ICON_PATHS,
+  ICONOS_ACTIVOS,
   SelloIcono,
   getCardBackground,
 } from "@/components/wallet-preview";
@@ -39,9 +41,9 @@ const GRADIENTES: { id: GradienteCard; label: string }[] = [
   { id: 'sunset', label: 'Atardecer' },
 ];
 
-const ICONOS_SELLO = Object.entries(ICON_PATHS).map(([id, def]) => ({
-  id: id as IconoSello,
-  label: def.label,
+const ICONOS_SELLO = ICONOS_ACTIVOS.map((id) => ({
+  id,
+  label: ICON_PATHS[id].label,
 }));
 
 type TabEditor = 'tarjeta' | 'sellos' | 'programa';
@@ -65,7 +67,12 @@ export default function TarjetaEditorPage() {
   const [gradiente, setGradiente] = useState<GradienteCard>('none');
 
   // Config de sellos
-  const [iconoSello, setIconoSello] = useState<IconoSello>('star');
+  const [iconoSello, setIconoSello] = useState<IconoSello>('circle');
+  const [stampFilledColor, setStampFilledColor] = useState('#FF5C3A');
+  const [stampEmptyColor, setStampEmptyColor] = useState('rgba(255,255,255,0.2)');
+
+  // Logo
+  const [logoUrl, setLogoUrl] = useState<string>('');
 
   // UI state
   const [tabActivo, setTabActivo] = useState<TabEditor>('tarjeta');
@@ -81,6 +88,10 @@ export default function TarjetaEditorPage() {
     setDescripcionPremio(negocio.descripcion_premio);
     setSellosRequeridos(negocio.sellos_requeridos);
     setColorMarca(negocio.color_marca);
+    if (negocio.stamp_icon) setIconoSello(negocio.stamp_icon as IconoSello);
+    if (negocio.stamp_filled_color) setStampFilledColor(negocio.stamp_filled_color);
+    if (negocio.stamp_empty_color) setStampEmptyColor(negocio.stamp_empty_color);
+    if (negocio.logo_url) setLogoUrl(negocio.logo_url);
   }, [negocio]);
 
   const cardConfig = {
@@ -93,6 +104,9 @@ export default function TarjetaEditorPage() {
     iconoSello,
     gradiente,
     model,
+    stampFilledColor,
+    stampEmptyColor,
+    logoUrl: logoUrl || undefined,
   };
 
   const guardarCambios = async () => {
@@ -106,6 +120,10 @@ export default function TarjetaEditorPage() {
         descripcion_premio: descripcionPremio,
         sellos_requeridos: sellosRequeridos,
         color_marca: colorMarca,
+        stamp_icon: iconoSello,
+        stamp_filled_color: stampFilledColor,
+        stamp_empty_color: stampEmptyColor,
+        logo_url: logoUrl || null,
       })
       .eq("id", negocio.id);
 
@@ -248,16 +266,13 @@ export default function TarjetaEditorPage() {
               {/* Logo del negocio */}
               <Card className="p-7 border-none shadow-sm bg-white space-y-4">
                 <label className="text-sm font-bold text-navy">Logo del Negocio</label>
-                <div className="border-2 border-dashed border-navy/10 rounded-2xl p-8 flex flex-col items-center gap-3 hover:border-coral/30 transition-colors cursor-pointer">
-                  <div className="w-14 h-14 rounded-2xl bg-cream flex items-center justify-center text-3xl">
-                    ☕
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-bold text-navy">Subir logo</p>
-                    <p className="text-xs text-navy/40">PNG, JPG — mínimo 200×200 px</p>
-                  </div>
-                  <Badge variante="navy" tamaño="sm">Próximamente</Badge>
-                </div>
+                {negocio && (
+                  <LogoUploader
+                    businessId={negocio.id}
+                    currentUrl={logoUrl || null}
+                    onUploaded={(url) => setLogoUrl(url)}
+                  />
+                )}
               </Card>
             </div>
           )}
@@ -294,6 +309,53 @@ export default function TarjetaEditorPage() {
                         </span>
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Colores de sello */}
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-navy">Colores del Sello</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Sello ganado */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-navy/50 font-medium">Sello ganado</p>
+                      <div className="flex items-center gap-2 p-3 bg-cream rounded-xl">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden border-2 border-gray-200">
+                          <input
+                            type="color"
+                            value={stampFilledColor.startsWith('rgba') ? '#FF5C3A' : stampFilledColor}
+                            onChange={e => setStampFilledColor(e.target.value)}
+                            className="w-10 h-10 -translate-x-1 -translate-y-1 cursor-pointer"
+                          />
+                        </div>
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: stampFilledColor.startsWith('rgba') ? '#FF5C3A' : stampFilledColor }}
+                        >
+                          <SelloIcono icono={iconoSello} tamaño={16} color="white" />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Sello pendiente */}
+                    <div className="space-y-2">
+                      <p className="text-xs text-navy/50 font-medium">Sello pendiente</p>
+                      <div className="flex items-center gap-2 p-3 bg-cream rounded-xl">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden border-2 border-gray-200">
+                          <input
+                            type="color"
+                            value="#FFFFFF"
+                            onChange={e => setStampEmptyColor(`${e.target.value}33`)}
+                            className="w-10 h-10 -translate-x-1 -translate-y-1 cursor-pointer"
+                          />
+                        </div>
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2"
+                          style={{ backgroundColor: stampEmptyColor, borderColor: `${stampFilledColor}50` }}
+                        >
+                          <SelloIcono icono={iconoSello} tamaño={16} color="rgba(255,255,255,0.4)" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

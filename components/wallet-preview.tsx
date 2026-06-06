@@ -2,18 +2,42 @@
 
 import React from "react";
 
-export type IconoSello = 'star' | 'check' | 'heart' | 'bolt' | 'diamond' | 'crown' | 'fire';
+export type IconoSello =
+  | 'circle' | 'star' | 'coffee' | 'pizza' | 'heart' | 'bicycle'
+  | 'burger' | 'scissors' | 'car' | 'flower' | 'crown' | 'bolt'
+  | 'paw' | 'music' | 'gym' | 'cake'
+  | 'check' | 'diamond' | 'fire'; // legacy
+
 export type GradienteCard = 'none' | 'warm' | 'dark' | 'ocean' | 'sunset';
 
 export const ICON_PATHS: Record<IconoSello, { fill: boolean; path: string; label: string }> = {
-  star:    { fill: true,  label: 'Estrella', path: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-  check:   { fill: false, label: 'Check',    path: 'M20 6L9 17l-5-5' },
-  heart:   { fill: true,  label: 'Corazón',  path: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' },
-  bolt:    { fill: true,  label: 'Rayo',     path: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
-  diamond: { fill: true,  label: 'Diamante', path: 'M12 2l10 10-10 10L2 12 12 2z' },
-  crown:   { fill: false, label: 'Corona',   path: 'M2 20h20M5 20l2-8 5 4 5-4 2 8' },
-  fire:    { fill: false, label: 'Fuego',    path: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' },
+  circle:   { fill: true,  label: 'Círculo',  path: 'M12 2a10 10 0 100 20A10 10 0 0012 2z' },
+  star:     { fill: true,  label: 'Estrella', path: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  coffee:   { fill: false, label: 'Café',     path: 'M17 8h1a4 4 0 010 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3' },
+  pizza:    { fill: false, label: 'Pizza',    path: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z' },
+  heart:    { fill: true,  label: 'Corazón',  path: 'M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z' },
+  bicycle:  { fill: false, label: 'Bici',     path: 'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM12 6h4l3 6M5 12l4-6h4' },
+  burger:   { fill: false, label: 'Burger',   path: 'M3 12h18M3 8h18a2 2 0 010 4H3a2 2 0 010-4zM5 8V6a2 2 0 012-2h10a2 2 0 012 2v2M5 16v2a2 2 0 002 2h10a2 2 0 002-2v-2' },
+  scissors: { fill: false, label: 'Tijeras',  path: 'M6 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12' },
+  car:      { fill: false, label: 'Auto',     path: 'M16 6l4 6H4l4-6h8zM2 12h20v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4zM6 18v2M18 18v2' },
+  flower:   { fill: false, label: 'Flor',     path: 'M12 2a4 4 0 014 4c0 1.5-.8 2.8-2 3.5A4 4 0 0120 14a4 4 0 01-4 4c-1.5 0-2.8-.8-3.5-2A4 4 0 018 20a4 4 0 01-4-4 4 4 0 013.5-3.9A4 4 0 016 9a4 4 0 014-4 4 4 0 012-3z' },
+  crown:    { fill: true,  label: 'Corona',   path: 'M3 17h18l-2-8-4 4-3-8-3 8-4-4-2 8z' },
+  bolt:     { fill: true,  label: 'Rayo',     path: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
+  paw:      { fill: false, label: 'Huella',   path: 'M12 18c-4 0-7-2-7-5s3-4 7-4 7 1 7 4-3 5-7 5zM5 7a2 2 0 100-4 2 2 0 000 4zM19 7a2 2 0 100-4 2 2 0 000 4zM8 5a2 2 0 100-4 2 2 0 000 4zM16 5a2 2 0 100-4 2 2 0 000 4z' },
+  music:    { fill: false, label: 'Música',   path: 'M9 18V5l12-2v13M9 18a3 3 0 100-6 3 3 0 000 6zM21 16a3 3 0 100-6 3 3 0 000 6z' },
+  gym:      { fill: false, label: 'Gym',      path: 'M6 4v16M18 4v16M6 8h12M6 16h12M2 12h4M18 12h4' },
+  cake:     { fill: false, label: 'Pastel',   path: 'M20 21v-8a2 2 0 00-2-2H6a2 2 0 00-2 2v8M4 21h16M12 3v6M8 9c0-2 4-2 4 0s4 2 4 0' },
+  // legacy
+  check:    { fill: false, label: 'Check',    path: 'M20 6L9 17l-5-5' },
+  diamond:  { fill: true,  label: 'Diamante', path: 'M12 2l10 10-10 10L2 12 12 2z' },
+  fire:     { fill: false, label: 'Fuego',    path: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' },
 };
+
+export const ICONOS_ACTIVOS: IconoSello[] = [
+  'circle','star','coffee','pizza','heart','bicycle',
+  'burger','scissors','car','flower','crown','bolt',
+  'paw','music','gym','cake',
+];
 
 export function getCardBackground(color: string, gradiente: GradienteCard): React.CSSProperties {
   switch (gradiente) {
@@ -67,6 +91,8 @@ export interface WalletCardConfig {
   cashbackBalance?: number;
   puntosBalance?: number;
   tierNombre?: string;
+  stampFilledColor?: string;
+  stampEmptyColor?: string;
 }
 
 export function WalletPreview({
@@ -82,7 +108,12 @@ export function WalletPreview({
   cashbackBalance = 0,
   puntosBalance = 0,
   tierNombre = 'Bronce',
+  stampFilledColor,
+  stampEmptyColor,
 }: WalletCardConfig) {
+  const filledBg = stampFilledColor ?? 'rgba(255,255,255,0.95)';
+  const emptyBorder = stampEmptyColor ?? 'rgba(255,255,255,0.25)';
+  const filledIconColor = stampFilledColor ? colorMarca : colorMarca;
   const cardStyle = getCardBackground(colorMarca, gradiente);
 
   return (
@@ -161,12 +192,12 @@ export function WalletPreview({
                           key={i}
                           className="w-[26px] h-[26px] rounded-full flex items-center justify-center"
                           style={{
-                            backgroundColor: sellado ? 'rgba(255,255,255,0.95)' : 'transparent',
-                            border: sellado ? 'none' : '1.5px solid rgba(255,255,255,0.25)',
+                            backgroundColor: sellado ? filledBg : 'transparent',
+                            border: sellado ? 'none' : `1.5px solid ${emptyBorder}`,
                           }}
                         >
                           {sellado ? (
-                            <SelloIcono icono={iconoSello} tamaño={13} color={colorMarca} />
+                            <SelloIcono icono={iconoSello} tamaño={13} color={stampFilledColor ? 'white' : colorMarca} />
                           ) : (
                             <span className="text-[8px] text-white/25 font-bold font-mono">{i + 1}</span>
                           )}

@@ -19,6 +19,9 @@ export interface Negocio {
   plan: "basic" | "pro";
   esta_activo: boolean;
   created_at: string;
+  stamp_icon?: string;
+  stamp_filled_color?: string;
+  stamp_empty_color?: string;
 }
 
 export interface LoyaltyConfig {

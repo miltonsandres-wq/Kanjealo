@@ -1,93 +1,83 @@
-import { ImageResponse } from "next/og";
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { generateCardImage } from "@/lib/card-image-generator";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const sellos    = Math.min(parseInt(searchParams.get("s") ?? "0"), 50);
-  const requeridos = Math.min(parseInt(searchParams.get("r") ?? "10"), 50);
-  const rawColor  = searchParams.get("c") ?? "FF5C3A";
-  const nombre    = searchParams.get("n") ?? "Programa de Lealtad";
-  const color     = rawColor.startsWith("#") ? rawColor : `#${rawColor}`;
+  const businessId = searchParams.get("business_id");
+  const customerId = searchParams.get("customer_id");
 
-  const stamps = Array.from({ length: requeridos }, (_, i) => i < sellos);
-  const perRow = requeridos <= 10 ? 5 : requeridos <= 20 ? 7 : 10;
-  const rows: boolean[][] = [];
-  for (let i = 0; i < stamps.length; i += perRow) {
-    rows.push(stamps.slice(i, i + perRow));
+  if (!businessId) {
+    return NextResponse.json({ error: "business_id requerido" }, { status: 400 });
   }
 
-  const stampSize = requeridos <= 10 ? 48 : requeridos <= 20 ? 38 : 30;
-  const gap = 8;
+  const { data: negocio, error: negErr } = await supabaseAdmin
+    .from("negocios")
+    .select("*")
+    .eq("id", businessId)
+    .single();
 
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: color,
-          padding: "28px 40px",
-          gap: 16,
-        }}
-      >
-        {/* Business / program name */}
-        <div
-          style={{
-            color: "white",
-            fontSize: 30,
-            fontWeight: 800,
-            letterSpacing: -0.5,
-            textShadow: "0 2px 6px rgba(0,0,0,0.25)",
-            textAlign: "center",
-          }}
-        >
-          {nombre}
-        </div>
+  if (negErr || !negocio) {
+    return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+  }
 
-        {/* Stamp grid */}
-        <div style={{ display: "flex", flexDirection: "column", gap, alignItems: "center" }}>
-          {rows.map((row, ri) => (
-            <div key={ri} style={{ display: "flex", gap }}>
-              {row.map((filled, ci) => (
-                <div
-                  key={ci}
-                  style={{
-                    width: stampSize,
-                    height: stampSize,
-                    borderRadius: "50%",
-                    background: filled ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.18)",
-                    border: `2px solid rgba(255,255,255,${filled ? "0.85" : "0.45"})`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: Math.round(stampSize * 0.5),
-                    boxShadow: filled ? "0 2px 8px rgba(0,0,0,0.18)" : "none",
-                  }}
-                >
-                  {filled ? "★" : ""}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+  let totalSellos = 0;
+  if (customerId) {
+    const { data: cliente } = await supabaseAdmin
+      .from("clientes")
+      .select("total_sellos")
+      .eq("id", customerId)
+      .single();
+    totalSellos = cliente?.total_sellos ?? 0;
+  }
 
-        {/* Progress */}
-        <div
-          style={{
-            color: "rgba(255,255,255,0.80)",
-            fontSize: 16,
-            fontWeight: 600,
-          }}
-        >
-          {sellos} de {requeridos} sellos acumulados
-        </div>
-      </div>
-    ),
-    { width: 1032, height: 336 }
-  );
+  const { data: loyaltyConfig } = await supabaseAdmin
+    .from("loyalty_config")
+    .select("model")
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  const buffer = await generateCardImage({
+    nombrePrograma: negocio.nombre_programa,
+    nombreNegocio: negocio.nombre,
+    colorMarca: negocio.color_marca,
+    logoUrl: negocio.logo_url,
+    stampIcon: negocio.stamp_icon ?? "circle",
+    stampFilledColor: negocio.stamp_filled_color ?? "#FF5C3A",
+    stampEmptyColor: negocio.stamp_empty_color ?? "rgba(255,255,255,0.2)",
+    totalSellos,
+    sellosRequeridos: negocio.sellos_requeridos,
+    descripcionPremio: negocio.descripcion_premio,
+    model: loyaltyConfig?.model ?? "stamps",
+  });
+
+  const fileName = customerId
+    ? `${businessId}/${customerId}-${Date.now()}.png`
+    : `${businessId}/hero.png`;
+
+  // Borrar imagen anterior del cliente antes de subir la nueva
+  if (customerId) {
+    const { data: existing } = await supabaseAdmin.storage
+      .from("card-images")
+      .list(businessId, { search: customerId });
+    if (existing && existing.length > 0) {
+      await supabaseAdmin.storage
+        .from("card-images")
+        .remove(existing.map((f) => `${businessId}/${f.name}`));
+    }
+  }
+
+  const { error: uploadErr } = await supabaseAdmin.storage
+    .from("card-images")
+    .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "60" });
+
+  if (uploadErr) {
+    console.error("[card-image] Upload error:", uploadErr.message);
+    return NextResponse.json({ error: "Error subiendo imagen" }, { status: 500 });
+  }
+
+  const { data: urlData } = supabaseAdmin.storage.from("card-images").getPublicUrl(fileName);
+  return NextResponse.json({ url: urlData.publicUrl });
 }

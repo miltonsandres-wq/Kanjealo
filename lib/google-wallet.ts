@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import { GoogleAuth } from "google-auth-library";
-import { createClient } from "@supabase/supabase-js";
 
 const ISSUER_ID    = process.env.GOOGLE_WALLET_ISSUER_ID!;
 const CLIENT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL!;
@@ -26,6 +25,9 @@ interface PassParams {
   model: string;
   descripcionPremio?: string;
   sucursales: Sucursal[];
+  stampIcon?: string;
+  stampFilledColor?: string;
+  stampEmptyColor?: string;
 }
 
 function buildStampVisual(filled: number, total: number): string {
@@ -166,54 +168,16 @@ async function generateAndUploadCardImage(
   params: PassParams,
   appUrl: string,
 ): Promise<string | null> {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) return null;
-
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceKey,
-      { auth: { persistSession: false } },
-    );
+    const url = new URL(`${appUrl}/api/wallet/card-image`);
+    url.searchParams.set("business_id", params.businessId);
+    url.searchParams.set("customer_id", params.clientId);
 
-    // Imagen compartida por negocio + cantidad de sellos (no por cliente)
-    const fileName = `${safeId(params.businessId)}_${params.totalSellos}.png`;
+    const res = await fetch(url.toString());
+    if (!res.ok) return null;
 
-    // Verificar si ya existe para no regenerarla
-    const { data: existing } = await supabase.storage
-      .from("wallet-cards")
-      .list("", { search: fileName });
-
-    if (existing && existing.length > 0) {
-      const { data } = supabase.storage.from("wallet-cards").getPublicUrl(fileName);
-      return data.publicUrl;
-    }
-
-    // Generar imagen nueva
-    const color = params.colorMarca.startsWith("#") ? params.colorMarca.slice(1) : params.colorMarca;
-    const encoded = Buffer.from(JSON.stringify({
-      s: params.totalSellos,
-      r: params.sellosRequeridos,
-      c: color,
-      n: params.programaNombre || params.businessNombre,
-    })).toString("base64url");
-
-    const imageRes = await fetch(`${appUrl}/api/wallet/card-image/${encoded}`);
-    if (!imageRes.ok) return null;
-
-    const buffer = Buffer.from(await imageRes.arrayBuffer());
-
-    const { error } = await supabase.storage
-      .from("wallet-cards")
-      .upload(fileName, buffer, { contentType: "image/png", upsert: true, cacheControl: "60" });
-
-    if (error) {
-      console.error("[wallet/image] Upload error:", error.message);
-      return null;
-    }
-
-    const { data } = supabase.storage.from("wallet-cards").getPublicUrl(fileName);
-    return data.publicUrl;
+    const json = await res.json();
+    return (json as { url?: string }).url ?? null;
   } catch (e) {
     console.error("[wallet/image] Error:", e);
     return null;

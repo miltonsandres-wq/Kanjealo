@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 const rutasProtegidas = createRouteMatcher([
   "/dashboard(.*)",
   "/onboarding(.*)",
+  "/admin(.*)",
 ]);
+
 
 const rutasAuth = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/"]);
 
@@ -20,6 +22,7 @@ export default clerkMiddleware(async (auth, req) => {
   if (rutasProtegidas(req)) {
     await auth.protect();
   }
+
 });
 
 export const config = {
