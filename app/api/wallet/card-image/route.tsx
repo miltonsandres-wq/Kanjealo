@@ -15,6 +15,29 @@ cloudinary.config({
 const W = 1032;
 const H = 336;
 
+// Tres zonas horizontales
+const ZONE_LEFT  = 0;    // 0 – 280
+const ZONE_MID_L = 280;
+const ZONE_MID_R = 720;
+const ZONE_RIGHT = 1032;
+
+// Grid 2 cols × 5 filas centrado en la zona central (280–720)
+const COLS       = 2;
+const ROWS       = 5;
+const S          = 60;   // tamaño del sello
+const GAP        = 8;    // espacio entre sellos
+const GRID_W     = COLS * S + (COLS - 1) * GAP;          // 128
+const GRID_H     = ROWS * S + (ROWS - 1) * GAP;          // 332
+const GRID_X     = (ZONE_MID_L + ZONE_MID_R) / 2 - GRID_W / 2;  // 436
+const GRID_Y     = (H - GRID_H) / 2;                     // 2
+
+function stampPos(i: number) {
+  return {
+    x: GRID_X + (i % COLS) * (S + GAP),
+    y: GRID_Y + Math.floor(i / COLS) * (S + GAP),
+  };
+}
+
 function darkenColor(hex: string, amount: number): string {
   const h = hex.replace("#", "").padEnd(6, "0");
   const r = parseInt(h.slice(0, 2), 16);
@@ -24,20 +47,6 @@ function darkenColor(hex: string, amount: number): string {
     Math.max(0, Math.round(v * (1 - amount))).toString(16).padStart(2, "0");
   return `#${d(r)}${d(g)}${d(b)}`;
 }
-
-// Posiciones diagonales fijas para hasta 10 sellos (x, y, size en px)
-const SCATTER: { x: number; y: number; s: number }[] = [
-  { x: 372, y: 226, s: 66 },
-  { x: 455, y: 138, s: 62 },
-  { x: 536, y: 52,  s: 64 },
-  { x: 620, y: 150, s: 60 },
-  { x: 702, y: 50,  s: 58 },
-  { x: 775, y: 166, s: 60 },
-  { x: 846, y: 62,  s: 56 },
-  { x: 904, y: 198, s: 58 },
-  { x: 950, y: 88,  s: 54 },
-  { x: 970, y: 248, s: 54 },
-];
 
 function buildCardJSX(p: {
   nombrePrograma: string;
@@ -50,11 +59,11 @@ function buildCardJSX(p: {
   sellosRequeridos: number;
   descripcionPremio?: string;
 }) {
-  const base  = p.colorMarca.startsWith("#") ? p.colorMarca : `#${p.colorMarca}`;
-  const dark  = darkenColor(base, 0.28);
-  const path  = STAMP_ICONS[p.stampIcon] ?? STAMP_ICONS.circle;
-  const count = Math.min(p.sellosRequeridos, 10);
-  const spots = SCATTER.slice(0, count);
+  const base     = p.colorMarca.startsWith("#") ? p.colorMarca : `#${p.colorMarca}`;
+  const dark     = darkenColor(base, 0.28);
+  const path     = STAMP_ICONS[p.stampIcon] ?? STAMP_ICONS.circle;
+  const count    = Math.min(p.sellosRequeridos, 10);
+  const iconSize = Math.round(S * 0.46);
 
   return (
     <div
@@ -68,107 +77,50 @@ function buildCardJSX(p: {
         fontFamily: "Helvetica Neue, Helvetica, Arial, sans-serif",
       }}
     >
-      {/* ── Logo + nombre (top-left) ── */}
-      <div
-        style={{
-          position: "absolute",
-          left: 40,
-          top: 32,
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {p.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={p.logoUrl}
-            width={56}
-            height={56}
-            style={{ borderRadius: 12, objectFit: "cover", marginRight: 14 }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 12,
-              backgroundColor: "rgba(255,255,255,0.2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginRight: 14,
-              fontSize: 26,
-              color: "white",
-            }}
-          >
-            ★
-          </div>
-        )}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "white", lineHeight: 1.2 }}>
-            {p.nombreNegocio}
-          </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>
-            {p.nombrePrograma}
-          </div>
+      {/* Divisores verticales sutiles */}
+      <div style={{ position: "absolute", left: ZONE_MID_L, top: 0, width: 1, height: H, backgroundColor: "rgba(255,255,255,0.12)", display: "flex" }} />
+      <div style={{ position: "absolute", left: ZONE_MID_R, top: 0, width: 1, height: H, backgroundColor: "rgba(255,255,255,0.12)", display: "flex" }} />
+
+      {/* ── ZONA IZQUIERDA: logo + nombre ── */}
+      {p.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={p.logoUrl}
+          width={70}
+          height={70}
+          style={{ position: "absolute", left: 35, top: 56, borderRadius: 14, objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{ position: "absolute", left: 35, top: 56, width: 70, height: 70, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, color: "white" }}>
+          ★
+        </div>
+      )}
+
+      <div style={{ position: "absolute", left: 35, top: 142, display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 17, fontWeight: 700, color: "white", lineHeight: 1.3 }}>
+          {p.nombreNegocio}
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+          {p.nombrePrograma}
         </div>
       </div>
 
-      {/* ── LEALTAD badge (top-right) ── */}
-      <div
-        style={{
-          position: "absolute",
-          right: 38,
-          top: 32,
-          backgroundColor: "rgba(255,255,255,0.18)",
-          borderRadius: 999,
-          padding: "5px 16px",
-          fontSize: 11,
-          fontWeight: 700,
-          color: "white",
-          letterSpacing: "0.08em",
-          display: "flex",
-        }}
-      >
-        LEALTAD
-      </div>
-
-      {/* ── Premio (bottom-left) ── */}
-      {p.descripcionPremio ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 40,
-            bottom: 26,
-            fontSize: 12,
-            color: "rgba(255,255,255,0.55)",
-            display: "flex",
-          }}
-        >
-          Premio: {p.descripcionPremio}
-        </div>
-      ) : null}
-
-      {/* ── Sellos dispersos en diagonal ── */}
-      {spots.map((pos, i) => {
-        const filled   = i < p.totalSellos;
-        const iconSize = Math.round(pos.s * 0.47);
+      {/* ── ZONA CENTRAL: grid 2 × 5 de sellos ── */}
+      {Array.from({ length: count }, (_, i) => {
+        const filled = i < p.totalSellos;
+        const { x, y } = stampPos(i);
         return (
           <div
             key={i}
             style={{
               position: "absolute",
-              left: pos.x,
-              top: pos.y,
-              width: pos.s,
-              height: pos.s,
+              left: x,
+              top: y,
+              width: S,
+              height: S,
               borderRadius: "50%",
-              backgroundColor: filled
-                ? p.stampFilledColor
-                : "rgba(255,255,255,0.10)",
-              border: `2.5px solid ${
-                filled ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.32)"
-              }`,
+              backgroundColor: filled ? p.stampFilledColor : "rgba(255,255,255,0.10)",
+              border: `2.5px solid ${filled ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.32)"}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -189,6 +141,32 @@ function buildCardJSX(p: {
           </div>
         );
       })}
+
+      {/* ── ZONA DERECHA: contador SELLOS + premio ── */}
+      <div style={{ position: "absolute", left: ZONE_MID_R + 32, top: 64, display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: "0.12em" }}>
+          SELLOS
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", marginTop: 4 }}>
+          <div style={{ fontSize: 54, fontWeight: 800, color: "white", lineHeight: 1 }}>
+            {p.totalSellos}
+          </div>
+          <div style={{ fontSize: 18, color: "rgba(255,255,255,0.45)", marginLeft: 6, marginBottom: 4 }}>
+            / {p.sellosRequeridos}
+          </div>
+        </div>
+      </div>
+
+      {p.descripcionPremio ? (
+        <div style={{ position: "absolute", left: ZONE_MID_R + 32, bottom: 44, display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.40)", letterSpacing: "0.10em" }}>
+            PREMIO
+          </div>
+          <div style={{ fontSize: 14, color: "white", fontWeight: 600, marginTop: 4 }}>
+            {p.descripcionPremio}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -223,14 +201,14 @@ export async function GET(req: Request) {
   }
 
   const jsx = buildCardJSX({
-    nombrePrograma:   negocio.nombre_programa,
-    nombreNegocio:    negocio.nombre,
-    colorMarca:       negocio.color_marca,
-    logoUrl:          negocio.logo_url,
-    stampIcon:        negocio.stamp_icon ?? "circle",
-    stampFilledColor: negocio.stamp_filled_color ?? negocio.color_marca,
+    nombrePrograma:    negocio.nombre_programa,
+    nombreNegocio:     negocio.nombre,
+    colorMarca:        negocio.color_marca,
+    logoUrl:           negocio.logo_url,
+    stampIcon:         negocio.stamp_icon ?? "circle",
+    stampFilledColor:  negocio.stamp_filled_color ?? negocio.color_marca,
     totalSellos,
-    sellosRequeridos: negocio.sellos_requeridos,
+    sellosRequeridos:  negocio.sellos_requeridos,
     descripcionPremio: negocio.descripcion_premio,
   });
 
@@ -243,9 +221,9 @@ export async function GET(req: Request) {
     : `card-images/${businessId}/hero`;
 
   const result = await cloudinary.uploader.upload(base64, {
-    public_id: publicId,
-    overwrite: true,
-    format:    "png",
+    public_id:  publicId,
+    overwrite:  true,
+    format:     "png",
     invalidate: true,
   });
 

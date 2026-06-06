@@ -53,7 +53,7 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
 
   const labelPuntos = model === "cashback" ? "Cashback"
     : model === "points" || model === "tiers" ? "Puntos"
-    : "Sellos";
+    : "SELLOS";
 
   const stampVisual = buildStampVisual(totalSellos, sellosRequeridos);
 
@@ -78,7 +78,7 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
     barcode: {
       type: "QR_CODE",
       value: `kj:id:${clientId}`,
-      alternateText: clienteNombre,
+      alternateText: "Mostrar para sumar puntos",
     },
     textModulesData: textModules,
   };
@@ -108,6 +108,7 @@ async function upsertLoyaltyClass(classId: string, params: PassParams, classHero
     programName: params.programaNombre || params.businessNombre,
     hexBackgroundColor: color,
     reviewStatus: "UNDER_REVIEW",
+    accountNameLabel: "MIEMBRO",
     programLogo: {
       sourceUri: { uri: logoUri },
       contentDescription: { defaultValue: { language: "es", value: params.businessNombre } },
