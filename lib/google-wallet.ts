@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import { GoogleAuth } from "google-auth-library";
-import { generateAndUploadHeroImage } from "@/lib/card-image-server";
 
 const ISSUER_ID    = process.env.GOOGLE_WALLET_ISSUER_ID!;
 const CLIENT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL!;
@@ -14,7 +13,7 @@ interface Sucursal {
   mensaje_notificacion: string | null;
 }
 
-interface PassParams {
+export interface PassParams {
   businessId: string;
   businessNombre: string;
   programaNombre: string;
@@ -30,6 +29,9 @@ interface PassParams {
   stampIcon?: string;
   stampFilledColor?: string;
   stampEmptyColor?: string;
+  // URLs de imagen pre-generadas (generadas en el route handler)
+  classHeroUrl?: string | null;
+  heroImageUrl?: string | null;
 }
 
 function buildStampVisual(filled: number, total: number): string {
@@ -180,42 +182,12 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
   }
 }
 
-async function generateAndUploadCardImage(
-  params: PassParams,
-  forClass = false,
-): Promise<string | null> {
-  try {
-    const publicId = forClass
-      ? `card-images/${params.businessId}/hero`
-      : `card-images/${params.businessId}/${params.clientId}`;
-
-    const url = await generateAndUploadHeroImage(
-      {
-        nombrePrograma:    params.programaNombre,
-        nombreNegocio:     params.businessNombre,
-        colorMarca:        params.colorMarca,
-        logoUrl:           params.logoUrl,
-        stampIcon:         params.stampIcon,
-        stampFilledColor:  params.stampFilledColor,
-        totalSellos:       forClass ? 0 : params.totalSellos,
-        sellosRequeridos:  params.sellosRequeridos,
-        descripcionPremio: params.descripcionPremio,
-      },
-      publicId,
-    );
-    return url;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[wallet/image] Error generando imagen (forClass=${forClass}, business=${params.businessId}):`, msg);
-    return null;
-  }
-}
-
 export async function actualizarPaseGoogleWallet(params: PassParams): Promise<void> {
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
 
-  const heroImageUrl = await generateAndUploadCardImage(params, false);
+  // heroImageUrl viene pre-generada desde el caller (route handler)
+  const { heroImageUrl } = params;
 
   const loyaltyObject = heroImageUrl
     ? {
@@ -237,11 +209,8 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  // Generar imagen del template de clase y del cliente en paralelo (sin HTTP fetch)
-  const [classHeroUrl, heroImageUrl] = await Promise.all([
-    generateAndUploadCardImage(params, true),
-    generateAndUploadCardImage(params, false),
-  ]);
+  // URLs de imagen pre-generadas en el route handler
+  const { classHeroUrl = null, heroImageUrl = null } = params;
 
   const loyaltyObject = heroImageUrl
     ? {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generarUrlGoogleWallet } from "@/lib/google-wallet";
+import { generateAndUploadHeroImage } from "@/lib/card-image-server";
 
 export const runtime = "nodejs";
 
@@ -55,30 +56,65 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Negocio no encontrado", business_id }, { status: 404 });
   }
 
+  // Parámetros base de la imagen — se genera aquí en el route handler donde ImageResponse funciona
+  const imageParams = {
+    nombrePrograma:    negocio.nombre_programa ?? negocio.nombre,
+    nombreNegocio:     negocio.nombre,
+    colorMarca:        negocio.color_marca ?? "#FF5C3A",
+    logoUrl:           negocio.logo_url ?? undefined,
+    stampIcon:         negocio.stamp_icon ?? "circle",
+    stampFilledColor:  negocio.stamp_filled_color ?? undefined,
+    sellosRequeridos:  negocio.sellos_requeridos ?? 10,
+    descripcionPremio: negocio.descripcion_premio ?? undefined,
+  };
+
+  // Generar ambas imágenes en paralelo aquí en el route handler (contexto correcto para ImageResponse)
+  const [classHeroUrl, heroImageUrl] = await Promise.all([
+    generateAndUploadHeroImage(
+      { ...imageParams, totalSellos: 0 },
+      `card-images/${negocio.id}/hero`,
+    ).catch((e) => {
+      console.error("[wallet/google] Error imagen clase:", e instanceof Error ? e.message : e);
+      return null;
+    }),
+    generateAndUploadHeroImage(
+      { ...imageParams, totalSellos: cliente.total_sellos ?? 0 },
+      `card-images/${negocio.id}/${cliente.id}`,
+    ).catch((e) => {
+      console.error("[wallet/google] Error imagen cliente:", e instanceof Error ? e.message : e);
+      return null;
+    }),
+  ]);
+
+  console.log("[wallet/google] Hero images:", { classHeroUrl, heroImageUrl });
+
   const debug = searchParams.get("debug") === "1";
 
   try {
-    const { url, payload, heroImageUrl } = await generarUrlGoogleWallet({
-      businessId: negocio.id,
-      businessNombre: negocio.nombre,
-      programaNombre: negocio.nombre_programa ?? negocio.nombre,
-      colorMarca: negocio.color_marca ?? "#FF5C3A",
-      logoUrl: negocio.logo_url ?? undefined,
-      stampIcon: negocio.stamp_icon ?? "circle",
+    const { url, payload } = await generarUrlGoogleWallet({
+      businessId:       negocio.id,
+      businessNombre:   negocio.nombre,
+      programaNombre:   negocio.nombre_programa ?? negocio.nombre,
+      colorMarca:       negocio.color_marca ?? "#FF5C3A",
+      logoUrl:          negocio.logo_url ?? undefined,
+      stampIcon:        negocio.stamp_icon ?? "circle",
       stampFilledColor: negocio.stamp_filled_color ?? undefined,
-      stampEmptyColor: negocio.stamp_empty_color ?? undefined,
-      clientId: cliente.id,
-      clienteNombre: cliente.nombre,
-      totalSellos: cliente.total_sellos ?? 0,
+      stampEmptyColor:  negocio.stamp_empty_color ?? undefined,
+      clientId:         cliente.id,
+      clienteNombre:    cliente.nombre,
+      totalSellos:      cliente.total_sellos ?? 0,
       sellosRequeridos: negocio.sellos_requeridos ?? 10,
-      model: loyaltyConfig?.model ?? "stamps",
+      model:            loyaltyConfig?.model ?? "stamps",
       descripcionPremio: negocio.descripcion_premio ?? undefined,
-      sucursales: sucursales ?? [],
+      sucursales:       sucursales ?? [],
+      classHeroUrl,
+      heroImageUrl,
     });
 
-    if (debug) return NextResponse.json({ heroImageUrl, payload });
+    if (debug) return NextResponse.json({ classHeroUrl, heroImageUrl, payload });
     return NextResponse.redirect(url);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? "Error generando URL" }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Error generando URL";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
