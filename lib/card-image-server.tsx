@@ -149,6 +149,7 @@ function buildCardJSX(p: HeroImageParams) {
             style={{
               display: "flex",
               flexDirection: "row",
+              alignItems: "center",
               marginBottom: rowIdx < ROWS - 1 ? S_GAP : 0,
             }}
           >
@@ -160,6 +161,8 @@ function buildCardJSX(p: HeroImageParams) {
                   style={{
                     width: S,
                     height: S,
+                    minWidth: S,
+                    minHeight: S,
                     borderRadius: "50%",
                     backgroundColor: stamp.isFilled
                       ? filled
@@ -172,6 +175,8 @@ function buildCardJSX(p: HeroImageParams) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
+                    overflow: "hidden",
                     marginRight: colIdx < COLS - 1 ? S_GAP : 0,
                   }}
                 >

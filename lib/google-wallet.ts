@@ -58,9 +58,13 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
 
   const stampVisual = buildStampVisual(totalSellos, sellosRequeridos);
 
-  const textModules: { header: string; body: string; id: string }[] = [
-    { header: "Mis sellos", body: stampVisual, id: "sellos" },
-  ];
+  const textModules: { header: string; body: string; id: string }[] = [];
+
+  if (clienteNombre) {
+    textModules.push({ header: "Miembro", body: clienteNombre, id: "miembro" });
+  }
+
+  textModules.push({ header: "Mis sellos", body: stampVisual, id: "sellos" });
 
   if (descripcionPremio) {
     textModules.push({ header: "Premio", body: descripcionPremio, id: "premio" });
