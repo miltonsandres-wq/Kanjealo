@@ -224,9 +224,19 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
       }
     : buildLoyaltyObject(params, classId, objectId);
 
-  await upsertLoyaltyClass(classId, params, classHeroUrl);
-  await upsertLoyaltyObject(loyaltyObject, objectId);
+  // Intentar actualizar via API (puede fallar si el Issuer ID no está configurado en Wallet Console)
+  try {
+    await upsertLoyaltyClass(classId, params, classHeroUrl);
+  } catch (e) {
+    console.warn("[wallet] upsertLoyaltyClass falló (no fatal):", e instanceof Error ? e.message : e);
+  }
+  try {
+    await upsertLoyaltyObject(loyaltyObject, objectId);
+  } catch (e) {
+    console.warn("[wallet] upsertLoyaltyObject falló (no fatal):", e instanceof Error ? e.message : e);
+  }
 
+  // El JWT lleva el objeto completo — Google Wallet lo crea/actualiza al guardar
   const jwtPayload = {
     iss: CLIENT_EMAIL,
     aud: "google",
@@ -234,7 +244,7 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
     iat: Math.floor(Date.now() / 1000),
     origins: [appUrl],
     payload: {
-      loyaltyObjects: [{ id: objectId, classId }],
+      loyaltyObjects: [loyaltyObject],
     },
   };
 

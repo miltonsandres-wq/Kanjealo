@@ -250,7 +250,7 @@ function buildCardJSX(p: HeroImageParams) {
               marginLeft: 6,
             }}
           >
-            / {p.sellosRequeridos}
+            {`/ ${p.sellosRequeridos}`}
           </div>
         </div>
         {p.descripcionPremio ? (
