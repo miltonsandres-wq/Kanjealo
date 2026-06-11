@@ -38,7 +38,7 @@ function safeId(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
-function buildLoyaltyObject(params: PassParams, classId: string, objectId: string) {
+function buildLoyaltyObject(params: PassParams, classId: string, objectId: string, heroImageUrl?: string | null) {
   const { clientId, clienteNombre, totalSellos, sellosRequeridos, model, descripcionPremio } = params;
 
   const labelPuntos = model === "cashback" ? "Cashback"
@@ -54,6 +54,20 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
   if (descripcionPremio) {
     textModules.push({ header: "Premio", body: descripcionPremio, id: "premio" });
   }
+
+  // imageModulesData renders in the card body ABOVE the barcode.
+  // heroImage on the object renders BELOW the barcode — wrong position.
+  const imageModules = heroImageUrl
+    ? [{
+        mainImage: {
+          sourceUri: { uri: heroImageUrl },
+          contentDescription: {
+            defaultValue: { language: "es", value: `${totalSellos} de ${sellosRequeridos} sellos` },
+          },
+        },
+        id: "stamp_grid",
+      }]
+    : undefined;
 
   return {
     id: objectId,
@@ -71,6 +85,7 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
       alternateText: "Mostrar para sumar puntos",
     },
     textModulesData: textModules,
+    ...(imageModules ? { imageModulesData: imageModules } : {}),
   };
 }
 
@@ -169,21 +184,7 @@ export async function actualizarPaseGoogleWallet(params: PassParams): Promise<vo
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
 
-  // heroImageUrl viene pre-generada desde el caller (route handler)
-  const { heroImageUrl } = params;
-
-  const loyaltyObject = heroImageUrl
-    ? {
-        ...buildLoyaltyObject(params, classId, objectId),
-        heroImage: {
-          sourceUri: { uri: heroImageUrl },
-          contentDescription: {
-            defaultValue: { language: "es", value: `${params.totalSellos} de ${params.sellosRequeridos} sellos` },
-          },
-        },
-      }
-    : buildLoyaltyObject(params, classId, objectId);
-
+  const loyaltyObject = buildLoyaltyObject(params, classId, objectId, params.heroImageUrl);
   await upsertLoyaltyObject(loyaltyObject, objectId);
 }
 
@@ -195,17 +196,7 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
   // URLs de imagen pre-generadas en el route handler
   const { classHeroUrl = null, heroImageUrl = null } = params;
 
-  const loyaltyObject = heroImageUrl
-    ? {
-        ...buildLoyaltyObject(params, classId, objectId),
-        heroImage: {
-          sourceUri: { uri: heroImageUrl },
-          contentDescription: {
-            defaultValue: { language: "es", value: `${params.totalSellos} de ${params.sellosRequeridos} sellos` },
-          },
-        },
-      }
-    : buildLoyaltyObject(params, classId, objectId);
+  const loyaltyObject = buildLoyaltyObject(params, classId, objectId, heroImageUrl);
 
   // Intentar actualizar via API (puede fallar si el Issuer ID no está configurado en Wallet Console)
   try {
