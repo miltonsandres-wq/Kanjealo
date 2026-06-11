@@ -205,7 +205,8 @@ async function generateAndUploadCardImage(
     );
     return url;
   } catch (e) {
-    console.error("[wallet/image] Error generando imagen:", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[wallet/image] Error generando imagen (forClass=${forClass}, business=${params.businessId}):`, msg);
     return null;
   }
 }
