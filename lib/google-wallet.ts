@@ -34,19 +34,6 @@ export interface PassParams {
   heroImageUrl?: string | null;
 }
 
-function buildStampVisual(filled: number, total: number): string {
-  const perRow = 5;
-  const rows: string[] = [];
-  for (let i = 0; i < total; i += perRow) {
-    const row: string[] = [];
-    for (let j = i; j < Math.min(i + perRow, total); j++) {
-      row.push(j < filled ? "★" : "☆");
-    }
-    rows.push(row.join("  "));
-  }
-  return rows.join("\n");
-}
-
 function safeId(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, "_");
 }
@@ -58,15 +45,11 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
     : model === "points" || model === "tiers" ? "Puntos"
     : "SELLOS";
 
-  const stampVisual = buildStampVisual(totalSellos, sellosRequeridos);
-
   const textModules: { header: string; body: string; id: string }[] = [];
 
   if (clienteNombre) {
     textModules.push({ header: "Miembro", body: clienteNombre, id: "miembro" });
   }
-
-  textModules.push({ header: "Mis sellos", body: stampVisual, id: "sellos" });
 
   if (descripcionPremio) {
     textModules.push({ header: "Premio", body: descripcionPremio, id: "premio" });
