@@ -192,6 +192,7 @@ export async function generarUrlGoogleWallet(
 
   const { heroImageUrl = null } = params;
 
+  const genericClass  = buildGenericClass(params, classId);
   const genericObject = buildGenericObject(params, classId, objectId, heroImageUrl);
 
   // REST API calls are non-fatal (Issuer ID may be misconfigured in console)
@@ -206,7 +207,9 @@ export async function generarUrlGoogleWallet(
     console.warn("[wallet] upsertGenericObject falló (no fatal):", e instanceof Error ? e.message : e);
   }
 
-  // JWT carries the full generic object — Google Wallet creates/updates on save
+  // JWT includes both class and object — Generic Pass requires the class to exist
+  // before saving the object. Since REST API may fail, embed both in the JWT so
+  // Google Wallet can create everything from the token alone.
   const jwtPayload = {
     iss: CLIENT_EMAIL,
     aud: "google",
@@ -214,6 +217,7 @@ export async function generarUrlGoogleWallet(
     iat: Math.floor(Date.now() / 1000),
     origins: [appUrl],
     payload: {
+      genericClasses: [genericClass],
       genericObjects: [genericObject],
     },
   };
