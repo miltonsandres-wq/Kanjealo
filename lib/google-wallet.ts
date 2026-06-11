@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { GoogleAuth } from "google-auth-library";
+import { generateAndUploadHeroImage } from "@/lib/card-image-server";
 
 const ISSUER_ID    = process.env.GOOGLE_WALLET_ISSUER_ID!;
 const CLIENT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL!;
@@ -177,21 +178,30 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
 
 async function generateAndUploadCardImage(
   params: PassParams,
-  appUrl: string,
   forClass = false,
 ): Promise<string | null> {
   try {
-    const url = new URL(`${appUrl}/api/wallet/card-image`);
-    url.searchParams.set("business_id", params.businessId);
-    if (!forClass) {
-      url.searchParams.set("customer_id", params.clientId);
-    }
-    const res = await fetch(url.toString());
-    if (!res.ok) return null;
-    const json = await res.json() as { url?: string };
-    return json.url ?? null;
+    const publicId = forClass
+      ? `card-images/${params.businessId}/hero`
+      : `card-images/${params.businessId}/${params.clientId}`;
+
+    const url = await generateAndUploadHeroImage(
+      {
+        nombrePrograma:    params.programaNombre,
+        nombreNegocio:     params.businessNombre,
+        colorMarca:        params.colorMarca,
+        logoUrl:           params.logoUrl,
+        stampIcon:         params.stampIcon,
+        stampFilledColor:  params.stampFilledColor,
+        totalSellos:       forClass ? 0 : params.totalSellos,
+        sellosRequeridos:  params.sellosRequeridos,
+        descripcionPremio: params.descripcionPremio,
+      },
+      publicId,
+    );
+    return url;
   } catch (e) {
-    console.error("[wallet/image] Error:", e);
+    console.error("[wallet/image] Error generando imagen:", e);
     return null;
   }
 }
@@ -199,9 +209,8 @@ async function generateAndUploadCardImage(
 export async function actualizarPaseGoogleWallet(params: PassParams): Promise<void> {
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const heroImageUrl = await generateAndUploadCardImage(params, appUrl, false);
+  const heroImageUrl = await generateAndUploadCardImage(params, false);
 
   const loyaltyObject = heroImageUrl
     ? {
@@ -223,10 +232,10 @@ export async function generarUrlGoogleWallet(params: PassParams): Promise<{ url:
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  // Generar imagen de clase (template sin sellos) e imagen de cliente (sellos actuales) en paralelo
+  // Generar imagen del template de clase y del cliente en paralelo (sin HTTP fetch)
   const [classHeroUrl, heroImageUrl] = await Promise.all([
-    generateAndUploadCardImage(params, appUrl, true),
-    generateAndUploadCardImage(params, appUrl, false),
+    generateAndUploadCardImage(params, true),
+    generateAndUploadCardImage(params, false),
   ]);
 
   const loyaltyObject = heroImageUrl
