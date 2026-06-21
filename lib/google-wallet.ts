@@ -58,7 +58,9 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
     id: objectId,
     classId,
     state: "ACTIVE",
-    accountId: clientId,
+    // accountId es el campo que Google Wallet muestra en el recuadro prominente
+    // de la tarjeta (pensado para un numero de cuenta, no para el UUID interno).
+    accountId: clienteNombre,
     accountName: clienteNombre,
     loyaltyPoints: {
       balance: { string: `${totalSellos} / ${sellosRequeridos}` },
