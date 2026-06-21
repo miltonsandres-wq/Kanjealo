@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { GoogleAuth } from "google-auth-library";
+import { generateAndUploadStampsQrImage } from "@/lib/card-image-server";
 
 const ISSUER_ID    = process.env.GOOGLE_WALLET_ISSUER_ID!;
 const CLIENT_EMAIL = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL!;
@@ -63,7 +64,11 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
       balance: { string: `${totalSellos} / ${sellosRequeridos}` },
       label: labelPuntos,
     },
-    // heroImage on the loyalty OBJECT renders between loyalty fields and barcode
+    // heroImage carries both the stamp grid AND the QR baked into the same
+    // banner (see generateAndUploadStampsQrImage). The native `barcode` field
+    // is intentionally omitted — Google Wallet always renders it above
+    // heroImage, which would put the QR back in the prominent slot instead
+    // of the stamps. Removing it lets the stamps take that visual position.
     ...(heroImageUrl
       ? {
           heroImage: {
@@ -76,12 +81,14 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
             },
           },
         }
-      : {}),
-    barcode: {
-      type: "QR_CODE",
-      value: `kj:id:${clientId}`,
-      alternateText: "Mostrar para sumar puntos",
-    },
+      : {
+          // Fallback so the card is never unscannable if image generation failed
+          barcode: {
+            type: "QR_CODE",
+            value: `kj:id:${clientId}`,
+            alternateText: "Mostrar para sumar puntos",
+          },
+        }),
     textModulesData: textModules,
   };
 }
@@ -172,7 +179,27 @@ export async function actualizarPaseGoogleWallet(params: PassParams): Promise<vo
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
 
-  const loyaltyObject = buildLoyaltyObject(params, classId, objectId, params.heroImageUrl);
+  // Regenerate the stamps+QR banner with the new stamp count so the live
+  // pass stays in sync every time a stamp is added (not just on creation).
+  const heroImageUrl = await generateAndUploadStampsQrImage(
+    {
+      nombrePrograma:    params.programaNombre,
+      nombreNegocio:     params.businessNombre,
+      colorMarca:        params.colorMarca,
+      stampIcon:         params.stampIcon,
+      stampFilledColor:  params.stampFilledColor,
+      totalSellos:       params.totalSellos,
+      sellosRequeridos:  params.sellosRequeridos,
+      descripcionPremio: params.descripcionPremio,
+      qrValue:           `kj:id:${params.clientId}`,
+    },
+    `card-images/${params.businessId}/${params.clientId}`,
+  ).catch((e) => {
+    console.warn("[wallet] generateAndUploadStampsQrImage falló (no fatal):", e instanceof Error ? e.message : e);
+    return params.heroImageUrl ?? null;
+  });
+
+  const loyaltyObject = buildLoyaltyObject(params, classId, objectId, heroImageUrl);
   await upsertLoyaltyObject(loyaltyObject, objectId);
 }
 

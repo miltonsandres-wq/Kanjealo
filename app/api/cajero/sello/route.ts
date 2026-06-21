@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         .single(),
       supabase
         .from("negocios")
-        .select("id, nombre, nombre_programa, color_marca, sellos_requeridos, descripcion_premio")
+        .select("id, nombre, nombre_programa, color_marca, sellos_requeridos, descripcion_premio, stamp_icon, stamp_filled_color")
         .eq("id", business_id)
         .single(),
       supabase
@@ -67,6 +67,8 @@ export async function POST(req: NextRequest) {
       sellosRequeridos: sellos_requeridos,
       model: loyaltyConfig?.model ?? "stamps",
       descripcionPremio: negocio.descripcion_premio ?? undefined,
+      stampIcon: negocio.stamp_icon ?? undefined,
+      stampFilledColor: negocio.stamp_filled_color ?? undefined,
       sucursales: [],
     };
 

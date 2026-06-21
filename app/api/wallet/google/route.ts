@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { generarUrlGoogleWallet } from "@/lib/google-wallet";
-import { generateAndUploadHeroImage } from "@/lib/card-image-server";
+import { generateAndUploadHeroImage, generateAndUploadStampsQrImage } from "@/lib/card-image-server";
 
 export const runtime = "nodejs";
 
@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
     descripcionPremio: negocio.descripcion_premio ?? undefined,
   };
 
-  // Generar ambas imágenes en paralelo aquí en el route handler (contexto correcto para ImageResponse)
+  // Clase: solo sellos (plantilla compartida, sin QR de cliente específico).
+  // Objeto del cliente: sellos + QR horneados juntos, reemplazando el barcode nativo.
   const [classHeroUrl, heroImageUrl] = await Promise.all([
     generateAndUploadHeroImage(
       { ...imageParams, totalSellos: 0 },
@@ -77,8 +78,12 @@ export async function GET(req: NextRequest) {
       console.error("[wallet/google] Error imagen clase:", e instanceof Error ? e.message : e);
       return null;
     }),
-    generateAndUploadHeroImage(
-      { ...imageParams, totalSellos: cliente.total_sellos ?? 0 },
+    generateAndUploadStampsQrImage(
+      {
+        ...imageParams,
+        totalSellos: cliente.total_sellos ?? 0,
+        qrValue: `kj:id:${cliente.id}`,
+      },
       `card-images/${negocio.id}/${cliente.id}`,
     ).catch((e) => {
       console.error("[wallet/google] Error imagen cliente:", e instanceof Error ? e.message : e);

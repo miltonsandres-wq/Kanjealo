@@ -38,3 +38,5 @@ next-env.d.ts
 # sensitive local files
 *.txt
 task.md
+
+.vercel
