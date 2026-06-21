@@ -37,12 +37,15 @@ function safeId(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
-// Generic Pass: heroImage renders at the TOP of the card; barcode at the BOTTOM.
-// Loyalty Card: barcode renders in the center; heroImage below barcode. Wrong layout.
-function buildGenericObject(params: PassParams, classId: string, objectId: string, heroImageUrl?: string | null) {
-  const { clientId, clienteNombre, totalSellos, sellosRequeridos, descripcionPremio } = params;
+function buildLoyaltyObject(params: PassParams, classId: string, objectId: string, heroImageUrl?: string | null) {
+  const { clientId, clienteNombre, totalSellos, sellosRequeridos, model, descripcionPremio } = params;
+
+  const labelPuntos = model === "cashback" ? "Cashback"
+    : model === "points" || model === "tiers" ? "Puntos"
+    : "SELLOS";
 
   const textModules: { header: string; body: string; id: string }[] = [];
+
   if (clienteNombre) {
     textModules.push({ header: "Miembro", body: clienteNombre, id: "miembro" });
   }
@@ -54,15 +57,13 @@ function buildGenericObject(params: PassParams, classId: string, objectId: strin
     id: objectId,
     classId,
     state: "ACTIVE",
-    cardTitle: {
-      defaultValue: { language: "es", value: params.programaNombre || params.businessNombre },
+    accountId: clientId,
+    accountName: clienteNombre,
+    loyaltyPoints: {
+      balance: { string: `${totalSellos} / ${sellosRequeridos}` },
+      label: labelPuntos,
     },
-    header: {
-      defaultValue: { language: "es", value: params.businessNombre },
-    },
-    subheader: {
-      defaultValue: { language: "es", value: `SELLOS: ${totalSellos} / ${sellosRequeridos}` },
-    },
+    // heroImage on the loyalty OBJECT renders between loyalty fields and barcode
     ...(heroImageUrl
       ? {
           heroImage: {
@@ -81,26 +82,7 @@ function buildGenericObject(params: PassParams, classId: string, objectId: strin
       value: `kj:id:${clientId}`,
       alternateText: "Mostrar para sumar puntos",
     },
-    ...(textModules.length > 0 ? { textModulesData: textModules } : {}),
-  };
-}
-
-function buildGenericClass(params: PassParams, classId: string) {
-  const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
-  const logoUri = params.logoUrl ?? `${appUrl}/logos/kanjealo-icon-1024.png`;
-
-  return {
-    id: classId,
-    issuerName: params.businessNombre,
-    reviewStatus: "UNDER_REVIEW",
-    hexBackgroundColor: color,
-    logo: {
-      sourceUri: { uri: logoUri },
-      contentDescription: {
-        defaultValue: { language: "es", value: params.businessNombre },
-      },
-    },
+    textModulesData: textModules,
   };
 }
 
@@ -114,56 +96,67 @@ async function getAuthToken(): Promise<string> {
   return tokenRes.token!;
 }
 
-async function upsertGenericClass(classId: string, params: PassParams): Promise<void> {
+async function upsertLoyaltyClass(classId: string, params: PassParams, classHeroUrl?: string | null): Promise<void> {
   const token = await getAuthToken();
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-  const genericClass = buildGenericClass(params, classId);
+  const color = params.colorMarca.startsWith("#") ? params.colorMarca : `#${params.colorMarca}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
+  const logoUri = params.logoUrl ?? `${appUrl}/logos/kanjealo-icon-1024.png`;
 
-  const getRes = await fetch(`${WALLET_API}/genericClass/${encodeURIComponent(classId)}`, { headers });
+  const loyaltyClass: Record<string, unknown> = {
+    id: classId,
+    issuerName: params.businessNombre,
+    programName: params.programaNombre || params.businessNombre,
+    hexBackgroundColor: color,
+    reviewStatus: "UNDER_REVIEW",
+    accountNameLabel: "MIEMBRO",
+    programLogo: {
+      sourceUri: { uri: logoUri },
+      contentDescription: { defaultValue: { language: "es", value: params.businessNombre } },
+    },
+  };
+
+  if (classHeroUrl) {
+    loyaltyClass.heroImage = {
+      sourceUri: { uri: classHeroUrl },
+      contentDescription: { defaultValue: { language: "es", value: params.programaNombre } },
+    };
+  }
+
+  const getRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, { headers });
 
   if (getRes.status === 404) {
-    const postRes = await fetch(`${WALLET_API}/genericClass`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(genericClass),
+    const postRes = await fetch(`${WALLET_API}/loyaltyClass`, {
+      method: "POST", headers, body: JSON.stringify(loyaltyClass),
     });
     if (!postRes.ok) {
       const err = await postRes.json();
       throw new Error(`Error creando clase: ${JSON.stringify(err)}`);
     }
   } else if (getRes.ok) {
-    await fetch(`${WALLET_API}/genericClass/${encodeURIComponent(classId)}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify(genericClass),
+    await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, {
+      method: "PATCH", headers, body: JSON.stringify(loyaltyClass),
     });
-  } else {
-    const err = await getRes.json();
-    throw new Error(`Error consultando clase: ${JSON.stringify(err)}`);
   }
 }
 
-async function upsertGenericObject(genericObject: object, objectId: string): Promise<void> {
+async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Promise<void> {
   const token = await getAuthToken();
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-  const getRes = await fetch(`${WALLET_API}/genericObject/${encodeURIComponent(objectId)}`, { headers });
+  const getRes = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`, { headers });
 
   if (getRes.status === 404) {
-    const postRes = await fetch(`${WALLET_API}/genericObject`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(genericObject),
+    const postRes = await fetch(`${WALLET_API}/loyaltyObject`, {
+      method: "POST", headers, body: JSON.stringify(loyaltyObject),
     });
     if (!postRes.ok) {
       const err = await postRes.json();
       throw new Error(`Error creando objeto: ${JSON.stringify(err)}`);
     }
   } else if (getRes.ok) {
-    const patchRes = await fetch(`${WALLET_API}/genericObject/${encodeURIComponent(objectId)}`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify(genericObject),
+    const patchRes = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`, {
+      method: "PATCH", headers, body: JSON.stringify(loyaltyObject),
     });
     if (!patchRes.ok) {
       const err = await patchRes.json();
@@ -179,8 +172,8 @@ export async function actualizarPaseGoogleWallet(params: PassParams): Promise<vo
   const classId  = `${ISSUER_ID}.${safeId(params.businessId)}`;
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
 
-  const genericObject = buildGenericObject(params, classId, objectId, params.heroImageUrl);
-  await upsertGenericObject(genericObject, objectId);
+  const loyaltyObject = buildLoyaltyObject(params, classId, objectId, params.heroImageUrl);
+  await upsertLoyaltyObject(loyaltyObject, objectId);
 }
 
 export async function generarUrlGoogleWallet(
@@ -190,26 +183,22 @@ export async function generarUrlGoogleWallet(
   const objectId = `${ISSUER_ID}.${safeId(params.clientId)}`;
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://kanjealo.vercel.app";
 
-  const { heroImageUrl = null } = params;
+  const { classHeroUrl = null, heroImageUrl = null } = params;
 
-  const genericClass  = buildGenericClass(params, classId);
-  const genericObject = buildGenericObject(params, classId, objectId, heroImageUrl);
+  const loyaltyObject = buildLoyaltyObject(params, classId, objectId, heroImageUrl);
 
-  // REST API calls are non-fatal (Issuer ID may be misconfigured in console)
   try {
-    await upsertGenericClass(classId, params);
+    await upsertLoyaltyClass(classId, params, classHeroUrl);
   } catch (e) {
-    console.warn("[wallet] upsertGenericClass falló (no fatal):", e instanceof Error ? e.message : e);
+    console.warn("[wallet] upsertLoyaltyClass falló (no fatal):", e instanceof Error ? e.message : e);
   }
   try {
-    await upsertGenericObject(genericObject, objectId);
+    await upsertLoyaltyObject(loyaltyObject, objectId);
   } catch (e) {
-    console.warn("[wallet] upsertGenericObject falló (no fatal):", e instanceof Error ? e.message : e);
+    console.warn("[wallet] upsertLoyaltyObject falló (no fatal):", e instanceof Error ? e.message : e);
   }
 
-  // JWT includes both class and object — Generic Pass requires the class to exist
-  // before saving the object. Since REST API may fail, embed both in the JWT so
-  // Google Wallet can create everything from the token alone.
+  // Loyalty Card JWT — Google Wallet creates/updates the pass from the full object
   const jwtPayload = {
     iss: CLIENT_EMAIL,
     aud: "google",
@@ -217,8 +206,7 @@ export async function generarUrlGoogleWallet(
     iat: Math.floor(Date.now() / 1000),
     origins: [appUrl],
     payload: {
-      genericClasses: [genericClass],
-      genericObjects: [genericObject],
+      loyaltyObjects: [loyaltyObject],
     },
   };
 
