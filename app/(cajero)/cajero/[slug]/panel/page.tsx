@@ -149,6 +149,24 @@ export default function CajeroPanelPage() {
       );
       const data = await res.json();
       if (data.cliente) setClienteData(data);
+      return data.cliente ?? null;
+    } finally {
+      setCargandoCliente(false);
+    }
+  }, []);
+
+  // ── Seleccionar cliente por id (QR de la tarjeta) — consulta el servidor,
+  // no depende de la lista cacheada en el navegador ──
+  const seleccionarClientePorId = useCallback(async (clientId: string, businessId: string) => {
+    setCargandoCliente(true);
+    setClienteData(null);
+    try {
+      const res = await fetch(
+        `/api/cajero/cliente?id=${encodeURIComponent(clientId)}&business_id=${businessId}`
+      );
+      const data = await res.json();
+      if (data.cliente) setClienteData(data);
+      return data.cliente ?? null;
     } finally {
       setCargandoCliente(false);
     }
@@ -281,13 +299,8 @@ export default function CajeroPanelPage() {
     }
 
     if (clientId) {
-      // Buscar por ID directamente en la lista cargada
-      const enLista = listaClientes.find(c => c.id === clientId);
-      if (enLista) {
-        await seleccionarCliente(enLista.telefono, session.businessId);
-      } else {
-        mostrarToast("error", "Cliente no encontrado");
-      }
+      const encontrado = await seleccionarClientePorId(clientId, session.businessId);
+      if (!encontrado) mostrarToast("error", "Cliente no encontrado");
       return;
     }
 

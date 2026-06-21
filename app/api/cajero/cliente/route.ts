@@ -7,18 +7,19 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
-// GET: listar todos los clientes del negocio o buscar por teléfono
+// GET: listar todos los clientes del negocio o buscar por teléfono / id
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const telefono = searchParams.get("telefono");
+  const id = searchParams.get("id");
   const business_id = searchParams.get("business_id");
 
   if (!business_id) {
     return NextResponse.json({ error: "Falta business_id" }, { status: 400 });
   }
 
-  // Sin teléfono → devolver lista completa de clientes
-  if (!telefono) {
+  // Sin teléfono ni id → devolver lista completa de clientes
+  if (!telefono && !id) {
     const { data: clientes } = await supabase
       .from("clientes")
       .select("id, nombre, telefono, total_sellos, total_canjes, ultima_visita")
@@ -27,43 +28,58 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ clientes: clientes ?? [] });
   }
 
-  const soloDigitos = telefono.replace(/\D/g, "");
+  let cliente: { id: string; nombre: string; telefono: string; total_sellos: number; total_canjes: number; created_at: string; ultima_visita: string | null; business_id: string } | null = null;
 
-  // 1. Búsqueda exacta con business_id
-  let { data: cliente } = await supabase
-    .from("clientes")
-    .select("id, nombre, telefono, total_sellos, total_canjes, created_at, ultima_visita, business_id")
-    .eq("business_id", business_id)
-    .eq("telefono", telefono.trim())
-    .maybeSingle();
-
-  // 2. Fallback: buscar por teléfono sin filtro de negocio (debug + casos de business_id incorrecto)
-  if (!cliente) {
-    const { data: porTelefono } = await supabase
+  // Busqueda por id (QR de la tarjeta, codifica el id del cliente directamente)
+  if (id) {
+    const { data } = await supabase
       .from("clientes")
       .select("id, nombre, telefono, total_sellos, total_canjes, created_at, ultima_visita, business_id")
-      .eq("telefono", telefono.trim())
+      .eq("id", id)
       .maybeSingle();
-
-    if (porTelefono) {
-      console.warn(
-        `[cliente GET] Encontrado por teléfono pero business_id no coincide. ` +
-        `Buscado: ${business_id} | En DB: ${porTelefono.business_id}`
-      );
-      // Si el cliente existe pero con distinto business_id, lo devolvemos igual
-      // (el cajero busca por teléfono, no por negocio en este contexto de debug)
-      cliente = porTelefono;
-    }
+    cliente = data;
   }
 
-  // 3. Fallback por dígitos (formatos distintos ej: "9844 4382" vs "98444382")
-  if (!cliente && soloDigitos.length >= 7) {
-    const { data: alt } = await supabase
+  if (!cliente && telefono) {
+    const soloDigitos = telefono.replace(/\D/g, "");
+
+    // 1. Búsqueda exacta con business_id
+    const { data: exacto } = await supabase
       .from("clientes")
       .select("id, nombre, telefono, total_sellos, total_canjes, created_at, ultima_visita, business_id")
-      .ilike("telefono", `%${soloDigitos}%`)
+      .eq("business_id", business_id)
+      .eq("telefono", telefono.trim())
       .maybeSingle();
-    if (alt) cliente = alt;
+    cliente = exacto;
+
+    // 2. Fallback: buscar por teléfono sin filtro de negocio (debug + casos de business_id incorrecto)
+    if (!cliente) {
+      const { data: porTelefono } = await supabase
+        .from("clientes")
+        .select("id, nombre, telefono, total_sellos, total_canjes, created_at, ultima_visita, business_id")
+        .eq("telefono", telefono.trim())
+        .maybeSingle();
+
+      if (porTelefono) {
+        console.warn(
+          `[cliente GET] Encontrado por teléfono pero business_id no coincide. ` +
+          `Buscado: ${business_id} | En DB: ${porTelefono.business_id}`
+        );
+        // Si el cliente existe pero con distinto business_id, lo devolvemos igual
+        // (el cajero busca por teléfono, no por negocio en este contexto de debug)
+        cliente = porTelefono;
+      }
+    }
+
+    // 3. Fallback por dígitos (formatos distintos ej: "9844 4382" vs "98444382")
+    if (!cliente && soloDigitos.length >= 7) {
+      const { data: alt } = await supabase
+        .from("clientes")
+        .select("id, nombre, telefono, total_sellos, total_canjes, created_at, ultima_visita, business_id")
+        .ilike("telefono", `%${soloDigitos}%`)
+        .maybeSingle();
+      cliente = alt ?? null;
+    }
   }
 
   if (!cliente) {
@@ -71,7 +87,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Usar el business_id real del cliente (puede diferir del param si hubo mismatch)
-  const bid = (cliente as any).business_id ?? business_id;
+  const bid = cliente.business_id ?? business_id;
 
   // Balance según modelo
   const [{ data: cashback }, { data: puntos }] = await Promise.all([
