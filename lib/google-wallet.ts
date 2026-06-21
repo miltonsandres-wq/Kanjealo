@@ -95,6 +95,34 @@ function buildLoyaltyObject(params: PassParams, classId: string, objectId: strin
   };
 }
 
+// Push manual por pase (no ligado a GPS): Google permite max 3 cada 24h
+// por objeto y no acepta texto personalizado en la notificacion automatica
+// por proximidad (merchantLocations), asi que este es el unico canal para
+// que el mensaje que escribe el negocio llegue tal cual al cliente.
+export async function enviarMensajeLoyaltyObject(clientId: string, header: string, body: string): Promise<void> {
+  const token = await getAuthToken();
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const objectId = `${ISSUER_ID}.${safeId(clientId)}`;
+
+  const res = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}/addMessage`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      message: {
+        header,
+        body,
+        id: `notif-${Date.now()}`,
+        messageType: "TEXT_AND_NOTIFY",
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(JSON.stringify(err));
+  }
+}
+
 async function getAuthToken(): Promise<string> {
   const auth = new GoogleAuth({
     credentials: { client_email: CLIENT_EMAIL, private_key: PRIVATE_KEY },
@@ -130,6 +158,17 @@ async function upsertLoyaltyClass(classId: string, params: PassParams, classHero
       sourceUri: { uri: classHeroUrl },
       contentDescription: { defaultValue: { language: "es", value: params.programaNombre } },
     };
+  }
+
+  // merchantLocations dispara la notificacion de proximidad nativa de Google
+  // Wallet (texto fijo del sistema, no personalizable; max 10 por clase).
+  const merchantLocations = params.sucursales
+    .filter((s): s is Sucursal & { latitud: number; longitud: number } => s.latitud != null && s.longitud != null)
+    .slice(0, 10)
+    .map((s) => ({ latitude: s.latitud, longitude: s.longitud }));
+
+  if (merchantLocations.length > 0) {
+    loyaltyClass.merchantLocations = merchantLocations;
   }
 
   const getRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, { headers });

@@ -5,7 +5,7 @@ import {
   User, Store, CreditCard, ShieldCheck, Users,
   ChevronRight, Plus, Save, ExternalLink, Copy, Check,
   Trash2, KeyRound, Zap, MapPin, Navigation, Pencil, X,
-  Wifi, Bell,
+  Wifi, Bell, Send,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,8 @@ export default function ConfiguracionPage() {
   const [detectandoGps, setDetectandoGps] = useState(false);
   const [gpsError, setGpsError] = useState("");
   const [guardandoSucursal, setGuardandoSucursal] = useState(false);
+  const [enviandoNotif, setEnviandoNotif] = useState<string | null>(null);
+  const [resultadoNotif, setResultadoNotif] = useState<Record<string, string>>({});
 
   // Cajeros
   const [cajeros, setCajeros] = useState<Cajero[]>([]);
@@ -218,6 +220,25 @@ export default function ConfiguracionPage() {
   const eliminarSucursal = async (id: string) => {
     await fetch(`/api/sucursales?id=${id}`, { method: "DELETE" });
     setSucursales(prev => prev.filter(s => s.id !== id));
+  };
+
+  const enviarNotificacionAhora = async (s: Sucursal) => {
+    setEnviandoNotif(s.id);
+    setResultadoNotif(prev => ({ ...prev, [s.id]: "" }));
+    try {
+      const res = await fetch("/api/sucursales/notificar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sucursal_id: s.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al enviar");
+      setResultadoNotif(prev => ({ ...prev, [s.id]: `Enviado a ${data.enviados} de ${data.total} clientes` }));
+    } catch (e) {
+      setResultadoNotif(prev => ({ ...prev, [s.id]: e instanceof Error ? e.message : "Error al enviar" }));
+    } finally {
+      setEnviandoNotif(null);
+    }
   };
 
   const guardarNegocio = async () => {
@@ -603,8 +624,19 @@ export default function ConfiguracionPage() {
                   {s.mensaje_notificacion && (
                     <div className="flex items-start gap-2 p-3 bg-navy/3 rounded-xl border border-navy/5">
                       <Bell className="w-3.5 h-3.5 text-navy/30 mt-0.5 shrink-0" />
-                      <p className="text-xs text-navy/50 italic">&ldquo;{s.mensaje_notificacion}&rdquo;</p>
+                      <p className="text-xs text-navy/50 italic flex-1">&ldquo;{s.mensaje_notificacion}&rdquo;</p>
+                      <button
+                        onClick={() => enviarNotificacionAhora(s)}
+                        disabled={enviandoNotif === s.id}
+                        className="shrink-0 flex items-center gap-1 text-xs font-bold text-coral hover:text-coral/70 transition-colors disabled:opacity-40"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {enviandoNotif === s.id ? "Enviando…" : "Enviar ahora"}
+                      </button>
                     </div>
+                  )}
+                  {resultadoNotif[s.id] && (
+                    <p className="text-[10px] text-navy/40 pl-1">{resultadoNotif[s.id]}</p>
                   )}
                 </div>
               ))}
@@ -679,7 +711,7 @@ export default function ConfiguracionPage() {
                     maxLength={100}
                     className="w-full px-4 py-3 bg-[#F4F4F8] rounded-xl text-sm text-navy outline-none focus:ring-2 ring-coral/20 resize-none"
                   />
-                  <p className="text-[10px] text-navy/30 text-right">{formMensaje.length}/100 — aparece en la pantalla de bloqueo del cliente</p>
+                  <p className="text-[10px] text-navy/30 text-right">{formMensaje.length}/100 — se envía como notificación al presionar &ldquo;Enviar ahora&rdquo; (máx. 3 cada 24h por cliente)</p>
                 </div>
               </div>
 
