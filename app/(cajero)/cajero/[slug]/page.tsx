@@ -51,6 +51,7 @@ export default function CajeroLoginPage() {
         businessSlug: data.negocio.slug,
         sellosRequeridos: data.negocio.sellos_requeridos,
         colorMarca: data.negocio.color_marca,
+        descripcionPremio: data.negocio.descripcion_premio,
         model: data.model,
         loyalty: data.loyalty,
       }));

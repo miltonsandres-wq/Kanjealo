@@ -40,6 +40,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cliente o negocio no encontrado" }, { status: 404 });
     }
 
+    if (cliente.total_sellos >= negocio.sellos_requeridos) {
+      return NextResponse.json(
+        { error: "El cliente ya completó su tarjeta. Canjea el premio antes de seguir sellando." },
+        { status: 409 }
+      );
+    }
+
     const { data: cajero } = await supabase
       .from("cajeros")
       .select("pin_hash")
@@ -55,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const nuevos_sellos = cliente.total_sellos + 1;
     const sellos_requeridos = negocio.sellos_requeridos;
-    const premio_listo = nuevos_sellos >= sellos_requeridos;
+    const tarjeta_completa = nuevos_sellos >= sellos_requeridos;
 
     const walletParams = {
       businessId: business_id,
@@ -72,34 +79,11 @@ export async function POST(req: NextRequest) {
       sucursales: [],
     };
 
-    if (premio_listo) {
-      await supabase.from("canjes").insert({ customer_id, business_id });
-      await supabase
-        .from("clientes")
-        .update({
-          total_sellos: 0,
-          total_canjes: cliente.total_canjes + 1,
-          ultima_visita: new Date().toISOString(),
-        })
-        .eq("id", customer_id);
-
-      // Actualizar pase Google Wallet en background. `after()` mantiene viva
-      // la función serverless hasta que esta promesa termine, en vez de
-      // dejarla morir a mitad de camino apenas se envía la respuesta.
-      after(() =>
-        actualizarPaseGoogleWallet({ ...walletParams, totalSellos: 0 }).catch((e) =>
-          console.error("[sello] actualizarPaseGoogleWallet falló:", e)
-        )
-      );
-
-      return NextResponse.json({
-        nuevos_sellos: 0,
-        sellos_requeridos,
-        premio: true,
-        total_canjes: cliente.total_canjes + 1,
-      });
-    }
-
+    // El premio ya NO se canjea solo al llegar al total: la tarjeta se queda
+    // completa (p.ej. 10/10) hasta que el cajero confirme la entrega del
+    // regalo desde el panel (ver /api/cajero/canjear). Así el cliente sigue
+    // viendo su tarjeta llena en Google Wallet en vez de que se resetee sin
+    // aviso.
     await supabase
       .from("clientes")
       .update({
@@ -108,7 +92,9 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", customer_id);
 
-    // Actualizar pase Google Wallet en background (ver comentario arriba)
+    // Actualizar pase Google Wallet en background. `after()` mantiene viva
+    // la función serverless hasta que esta promesa termine, en vez de
+    // dejarla morir a mitad de camino apenas se envía la respuesta.
     after(() =>
       actualizarPaseGoogleWallet({ ...walletParams, totalSellos: nuevos_sellos }).catch((e) =>
         console.error("[sello] actualizarPaseGoogleWallet falló:", e)
@@ -118,7 +104,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       nuevos_sellos,
       sellos_requeridos,
-      premio: false,
+      tarjeta_completa,
       total_canjes: cliente.total_canjes,
     });
   } catch (err: any) {

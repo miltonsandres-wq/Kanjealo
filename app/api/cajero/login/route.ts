@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   // Buscar negocio por slug
   const { data: negocio, error: errNegocio } = await supabase
     .from("negocios")
-    .select("id, nombre, slug, sellos_requeridos, color_marca, plan")
+    .select("id, nombre, slug, sellos_requeridos, color_marca, descripcion_premio, plan")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       slug: negocio.slug,
       sellos_requeridos: negocio.sellos_requeridos,
       color_marca: negocio.color_marca,
+      descripcion_premio: negocio.descripcion_premio,
     },
     model: loyaltyConfig?.model ?? "stamps",
     loyalty: loyaltyConfig,

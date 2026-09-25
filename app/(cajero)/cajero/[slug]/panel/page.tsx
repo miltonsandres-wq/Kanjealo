@@ -19,6 +19,7 @@ interface CajeroSession {
   businessSlug: string;
   sellosRequeridos: number;
   colorMarca: string;
+  descripcionPremio: string | null;
   model: string;
   loyalty: { cashback_percent: number; points_per_lempira: number } | null;
 }
@@ -181,11 +182,32 @@ export default function CajeroPanelPage() {
       });
       const data = await res.json();
       if (!res.ok) { mostrarToast("error", data.error); return; }
-      if (data.premio) {
-        mostrarToast("premio", `¡Premio desbloqueado! ${clienteData.cliente.nombre} completó su tarjeta 🎉`);
+      if (data.tarjeta_completa) {
+        mostrarToast("premio", `¡Tarjeta completa! ${clienteData.cliente.nombre} ya puede reclamar su premio 🎉`);
       } else {
         mostrarToast("ok", `Sello dado — ${data.nuevos_sellos} / ${data.sellos_requeridos}`);
       }
+      await recargarCliente();
+    } finally {
+      setOperando(false);
+    }
+  };
+
+  const canjearPremio = async () => {
+    if (!clienteData || !session || operando) return;
+    setOperando(true);
+    try {
+      const res = await fetch("/api/cajero/canjear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_id: clienteData.cliente.id,
+          business_id: session.businessId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast("error", data.error); return; }
+      mostrarToast("ok", `Premio entregado — tarjeta reiniciada para ${clienteData.cliente.nombre}`);
       await recargarCliente();
     } finally {
       setOperando(false);
@@ -416,23 +438,37 @@ export default function CajeroPanelPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={darSello}
-                  disabled={operando}
-                  className="w-full py-5 rounded-2xl text-white text-xl font-extrabold tracking-wide transition-all active:scale-95 disabled:opacity-50 shadow-lg"
-                  style={{ backgroundColor: color }}
-                >
-                  {operando ? "Procesando…" : "DAR SELLO"}
-                </button>
-
-                {cliente.total_sellos >= session.sellosRequeridos && (
-                  <div className="flex items-center gap-3 p-4 bg-coral/10 rounded-2xl border border-coral/20">
-                    <Gift className="w-6 h-6 text-coral shrink-0" />
-                    <div>
-                      <p className="font-bold text-coral text-sm">¡Tarjeta completada!</p>
-                      <p className="text-xs text-coral/70">El siguiente sello canjeará el premio automáticamente.</p>
+                {cliente.total_sellos >= session.sellosRequeridos ? (
+                  <>
+                    <div className="flex items-center gap-3 p-4 bg-coral/10 rounded-2xl border border-coral/20">
+                      <Gift className="w-6 h-6 text-coral shrink-0" />
+                      <div>
+                        <p className="font-bold text-coral text-sm">¡Tarjeta completada!</p>
+                        <p className="text-xs text-coral/70">
+                          {session.descripcionPremio
+                            ? `Entrega: ${session.descripcionPremio}`
+                            : "Entrega el premio y confirma el canje."}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                    <button
+                      onClick={canjearPremio}
+                      disabled={operando}
+                      className="w-full py-5 rounded-2xl bg-coral text-white text-xl font-extrabold tracking-wide transition-all active:scale-95 disabled:opacity-50 shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <Gift className="w-5 h-5" />
+                      {operando ? "Procesando…" : "CANJEAR PREMIO"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={darSello}
+                    disabled={operando}
+                    className="w-full py-5 rounded-2xl text-white text-xl font-extrabold tracking-wide transition-all active:scale-95 disabled:opacity-50 shadow-lg"
+                    style={{ backgroundColor: color }}
+                  >
+                    {operando ? "Procesando…" : "DAR SELLO"}
+                  </button>
                 )}
 
                 {/* Historial */}
