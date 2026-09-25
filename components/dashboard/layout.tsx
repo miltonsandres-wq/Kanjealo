@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
@@ -9,6 +9,7 @@ import { useNegocio } from "@/lib/hooks";
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { negocio, cargando } = useNegocio();
   const router = useRouter();
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
 
   useEffect(() => {
     if (!cargando && negocio === null) {
@@ -28,10 +29,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-cream">
-      <Sidebar />
-      <div className="pl-64">
-        <Topbar />
-        <main className="pt-20 p-8">
+      <Sidebar abierto={sidebarAbierto} onCerrar={() => setSidebarAbierto(false)} />
+      <div className="md:pl-64">
+        <Topbar onAbrirMenu={() => setSidebarAbierto(true)} />
+        <main className="pt-20 p-4 md:p-8">
           {children}
         </main>
       </div>

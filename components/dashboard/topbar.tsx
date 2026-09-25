@@ -2,18 +2,29 @@
 
 import React from "react";
 import { UserButton, useUser } from "@clerk/nextjs";
-import { Bell, Search } from "lucide-react";
+import { Bell, Menu, Search } from "lucide-react";
 import { Badge } from "../ui/badge";
 
-export function Topbar() {
+interface TopbarProps {
+  onAbrirMenu?: () => void;
+}
+
+export function Topbar({ onAbrirMenu }: TopbarProps) {
   const { user } = useUser();
 
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 fixed top-0 right-0 left-64 z-30 px-8 flex items-center justify-between">
+    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 fixed top-0 right-0 left-0 md:left-64 z-30 px-4 md:px-8 flex items-center justify-between">
       {/* Search / Breadcrumbs placeholder */}
       <div className="flex items-center gap-4 text-navy/40">
-        <Search className="w-5 h-5" />
-        <span className="text-sm font-medium">Buscar en Kanjealo...</span>
+        <button
+          onClick={onAbrirMenu}
+          className="md:hidden text-navy/60 hover:text-navy -ml-1 p-1"
+          aria-label="Abrir menú"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+        <Search className="w-5 h-5 hidden sm:block" />
+        <span className="text-sm font-medium hidden sm:inline">Buscar en Kanjealo...</span>
       </div>
 
       {/* User Actions */}
