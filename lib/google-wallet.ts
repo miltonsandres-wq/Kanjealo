@@ -123,14 +123,30 @@ export async function enviarMensajeLoyaltyObject(clientId: string, header: strin
   }
 }
 
-async function getAuthToken(): Promise<string> {
-  const auth = new GoogleAuth({
-    credentials: { client_email: CLIENT_EMAIL, private_key: PRIVATE_KEY },
-    scopes: ["https://www.googleapis.com/auth/wallet_object.issuer"],
-  });
-  const client = await auth.getClient();
+// Reutiliza el cliente y el access token entre llamadas (dura ~1h) en vez de
+// pedir uno nuevo a Google en cada sello/notificacion, que era buena parte
+// de la demora percibida.
+let cachedAuth: GoogleAuth | null = null;
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+export async function getAuthToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return cachedToken.value;
+  }
+  if (!cachedAuth) {
+    cachedAuth = new GoogleAuth({
+      credentials: { client_email: CLIENT_EMAIL, private_key: PRIVATE_KEY },
+      scopes: ["https://www.googleapis.com/auth/wallet_object.issuer"],
+    });
+  }
+  const client = await cachedAuth.getClient();
   const tokenRes = await client.getAccessToken();
-  return tokenRes.token!;
+  const token = tokenRes.token!;
+  // El SDK no siempre expone la expiracion; asumimos 50 min si falta.
+  const expiresAt = (client as unknown as { credentials?: { expiry_date?: number } }).credentials?.expiry_date
+    ?? Date.now() + 50 * 60_000;
+  cachedToken = { value: token, expiresAt };
+  return token;
 }
 
 async function upsertLoyaltyClass(classId: string, params: PassParams, classHeroUrl?: string | null): Promise<void> {
@@ -171,9 +187,14 @@ async function upsertLoyaltyClass(classId: string, params: PassParams, classHero
     loyaltyClass.merchantLocations = merchantLocations;
   }
 
-  const getRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, { headers });
+  // Antes se hacia GET y luego POST/PATCH segun el resultado (2 viajes de
+  // red). Ahora se intenta PATCH directo y solo se crea con POST si no
+  // existia (404), ahorrando un round-trip en el caso normal (ya existe).
+  const patchRes = await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, {
+    method: "PATCH", headers, body: JSON.stringify(loyaltyClass),
+  });
 
-  if (getRes.status === 404) {
+  if (patchRes.status === 404) {
     const postRes = await fetch(`${WALLET_API}/loyaltyClass`, {
       method: "POST", headers, body: JSON.stringify(loyaltyClass),
     });
@@ -181,10 +202,9 @@ async function upsertLoyaltyClass(classId: string, params: PassParams, classHero
       const err = await postRes.json();
       throw new Error(`Error creando clase: ${JSON.stringify(err)}`);
     }
-  } else if (getRes.ok) {
-    await fetch(`${WALLET_API}/loyaltyClass/${encodeURIComponent(classId)}`, {
-      method: "PATCH", headers, body: JSON.stringify(loyaltyClass),
-    });
+  } else if (!patchRes.ok) {
+    const err = await patchRes.json();
+    throw new Error(`Error actualizando clase: ${JSON.stringify(err)}`);
   }
 }
 
@@ -192,9 +212,12 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
   const token = await getAuthToken();
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-  const getRes = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`, { headers });
+  // Mismo ahorro que en upsertLoyaltyClass: PATCH directo, POST solo si 404.
+  const patchRes = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`, {
+    method: "PATCH", headers, body: JSON.stringify(loyaltyObject),
+  });
 
-  if (getRes.status === 404) {
+  if (patchRes.status === 404) {
     const postRes = await fetch(`${WALLET_API}/loyaltyObject`, {
       method: "POST", headers, body: JSON.stringify(loyaltyObject),
     });
@@ -202,17 +225,9 @@ async function upsertLoyaltyObject(loyaltyObject: object, objectId: string): Pro
       const err = await postRes.json();
       throw new Error(`Error creando objeto: ${JSON.stringify(err)}`);
     }
-  } else if (getRes.ok) {
-    const patchRes = await fetch(`${WALLET_API}/loyaltyObject/${encodeURIComponent(objectId)}`, {
-      method: "PATCH", headers, body: JSON.stringify(loyaltyObject),
-    });
-    if (!patchRes.ok) {
-      const err = await patchRes.json();
-      throw new Error(`Error actualizando objeto: ${JSON.stringify(err)}`);
-    }
-  } else {
-    const err = await getRes.json();
-    throw new Error(`Error consultando objeto: ${JSON.stringify(err)}`);
+  } else if (!patchRes.ok) {
+    const err = await patchRes.json();
+    throw new Error(`Error actualizando objeto: ${JSON.stringify(err)}`);
   }
 }
 

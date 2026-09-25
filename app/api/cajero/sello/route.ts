@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { actualizarPaseGoogleWallet } from "@/lib/google-wallet";
 
@@ -83,8 +83,14 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", customer_id);
 
-      // Actualizar pase Google Wallet en background
-      actualizarPaseGoogleWallet({ ...walletParams, totalSellos: 0 }).catch(() => {});
+      // Actualizar pase Google Wallet en background. `after()` mantiene viva
+      // la función serverless hasta que esta promesa termine, en vez de
+      // dejarla morir a mitad de camino apenas se envía la respuesta.
+      after(() =>
+        actualizarPaseGoogleWallet({ ...walletParams, totalSellos: 0 }).catch((e) =>
+          console.error("[sello] actualizarPaseGoogleWallet falló:", e)
+        )
+      );
 
       return NextResponse.json({
         nuevos_sellos: 0,
@@ -102,8 +108,12 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", customer_id);
 
-    // Actualizar pase Google Wallet en background
-    actualizarPaseGoogleWallet({ ...walletParams, totalSellos: nuevos_sellos }).catch(() => {});
+    // Actualizar pase Google Wallet en background (ver comentario arriba)
+    after(() =>
+      actualizarPaseGoogleWallet({ ...walletParams, totalSellos: nuevos_sellos }).catch((e) =>
+        console.error("[sello] actualizarPaseGoogleWallet falló:", e)
+      )
+    );
 
     return NextResponse.json({
       nuevos_sellos,
