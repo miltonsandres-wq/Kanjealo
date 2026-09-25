@@ -52,6 +52,7 @@ export default function OnboardingPage() {
         logo_url: null,
         stripe_customer_id: null,
         stripe_subscription_id: null,
+        trial_ends_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
       });
 
       if (error) throw error;

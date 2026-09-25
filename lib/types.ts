@@ -16,6 +16,8 @@ export interface Negocio {
   descripcion_premio: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  paypal_subscription_id: string | null;
+  trial_ends_at: string | null;
   plan: "basic" | "pro";
   esta_activo: boolean;
   created_at: string;

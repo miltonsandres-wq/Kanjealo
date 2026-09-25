@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUser } from "@clerk/nextjs";
 import { useNegocio, useLoyaltyConfig } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase";
+import { PaypalSubscribeButton } from "@/components/paypal-subscribe-button";
 import type { LoyaltyModel } from "@/lib/types";
 import type { Cajero } from "@/lib/types";
 
@@ -95,6 +96,10 @@ export default function ConfiguracionPage() {
   const [nuevoCajeroPin, setNuevoCajeroPin] = useState("");
   const [agregandoCajero, setAgregandoCajero] = useState(false);
   const [mostrarFormCajero, setMostrarFormCajero] = useState(false);
+
+  const [suscribiendo, setSuscribiendo] = useState(false);
+  const [cancelandoSuscripcion, setCancelandoSuscripcion] = useState(false);
+  const [errorSuscripcion, setErrorSuscripcion] = useState("");
 
   // Inicializar campos editables
   useEffect(() => {
@@ -309,11 +314,48 @@ export default function ConfiguracionPage() {
     setCajeros(prev => prev.filter(c => c.id !== id));
   };
 
-  const actualizarPlan = async (plan: "basic" | "pro") => {
+  const onSuscripcionAprobada = async (subscriptionId: string) => {
     if (!negocio) return;
-    await supabase.from("negocios").update({ plan }).eq("id", negocio.id);
-    await refetch();
+    setSuscribiendo(true);
+    setErrorSuscripcion("");
+    try {
+      const res = await fetch("/api/paypal/link-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: negocio.id, subscription_id: subscriptionId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErrorSuscripcion(data.error ?? "No se pudo activar la suscripción"); return; }
+      await refetch();
+    } finally {
+      setSuscribiendo(false);
+    }
   };
+
+  const cancelarSuscripcion = async () => {
+    if (!negocio || cancelandoSuscripcion) return;
+    if (!confirm("¿Cancelar tu suscripción? Perderás el acceso al plan Pro al finalizar el periodo actual.")) return;
+    setCancelandoSuscripcion(true);
+    try {
+      const res = await fetch("/api/paypal/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: negocio.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErrorSuscripcion(data.error ?? "No se pudo cancelar la suscripción"); return; }
+      await refetch();
+    } finally {
+      setCancelandoSuscripcion(false);
+    }
+  };
+
+  const suscripcionActiva = Boolean(negocio?.paypal_subscription_id && negocio?.esta_activo);
+  const diasDePrueba = negocio?.trial_ends_at
+    ? Math.ceil((new Date(negocio.trial_ends_at).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+    : null;
+  const pruebaActiva = diasDePrueba !== null && diasDePrueba > 0 && !suscripcionActiva;
+  const pruebaVencida = diasDePrueba !== null && diasDePrueba <= 0 && !suscripcionActiva;
 
   // ── Contenido por sección ──────────────────────────────────
 
@@ -747,7 +789,9 @@ export default function ConfiguracionPage() {
               <p className="text-xs text-white/40 uppercase tracking-widest font-bold">Plan actual</p>
               <p className="text-2xl font-extrabold capitalize mt-1">{negocio?.plan ?? "Basic"}</p>
             </div>
-            <Badge variante="coral">{negocio?.esta_activo ? "Activo" : "Inactivo"}</Badge>
+            <Badge variante="coral">
+              {suscripcionActiva ? "Activo" : pruebaActiva ? `Prueba: ${diasDePrueba} días` : "Sin suscripción"}
+            </Badge>
           </div>
           <div className="border-t border-white/10 pt-4 grid grid-cols-2 gap-4">
             <div>
@@ -761,10 +805,16 @@ export default function ConfiguracionPage() {
           </div>
         </div>
 
+        {pruebaVencida && (
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-sm text-red-600 font-medium">
+            Tu prueba de 15 días terminó. Suscríbete para seguir usando Kanjealo sin interrupciones.
+          </div>
+        )}
+
         <div className="p-5 rounded-2xl border border-navy/10 bg-cream space-y-3">
           <div className="flex items-center justify-between">
-            <p className="font-bold text-navy text-sm">Plan Pro</p>
-            <p className="font-extrabold text-navy">L. 499<span className="text-xs font-normal text-navy/40">/mes</span></p>
+            <p className="font-bold text-navy text-sm">Kanjealo Pro</p>
+            <p className="font-extrabold text-navy">$30<span className="text-xs font-normal text-navy/40">/mes</span></p>
           </div>
           <ul className="space-y-1.5">
             {["Clientes ilimitados", "Cajeros ilimitados", "Reportes avanzados", "Soporte prioritario", "Apple & Google Wallet"].map(f => (
@@ -774,24 +824,34 @@ export default function ConfiguracionPage() {
               </li>
             ))}
           </ul>
-          {negocio?.plan === "pro" ? (
+
+          {errorSuscripcion && (
+            <p className="text-xs text-red-500 font-medium">{errorSuscripcion}</p>
+          )}
+
+          {suscripcionActiva ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2 py-2 px-3 bg-green-50 rounded-xl">
                 <Check className="w-4 h-4 text-green-500 shrink-0" />
-                <span className="text-sm font-bold text-green-700">Ya tienes el Plan Pro activo</span>
+                <span className="text-sm font-bold text-green-700">Suscripción activa vía PayPal</span>
               </div>
               <button
-                onClick={() => actualizarPlan("basic")}
-                className="text-xs text-navy/30 hover:text-navy/60 transition-colors w-full text-center"
+                onClick={cancelarSuscripcion}
+                disabled={cancelandoSuscripcion}
+                className="text-xs text-navy/30 hover:text-red-500 transition-colors w-full text-center disabled:opacity-50"
               >
-                Bajar a Basic
+                {cancelandoSuscripcion ? "Cancelando…" : "Cancelar suscripción"}
               </button>
             </div>
-          ) : (
-            <Button variante="primario" className="w-full mt-2" onClick={() => actualizarPlan("pro")}>
-              Actualizar a Pro
-            </Button>
-          )}
+          ) : suscribiendo ? (
+            <div className="flex items-center justify-center py-3 text-sm text-navy/40">Activando…</div>
+          ) : negocio ? (
+            <PaypalSubscribeButton
+              planId={process.env.NEXT_PUBLIC_PAYPAL_PLAN_PRO!}
+              onApproved={onSuscripcionAprobada}
+              onError={() => setErrorSuscripcion("Ocurrió un error con PayPal. Intenta de nuevo.")}
+            />
+          ) : null}
         </div>
       </Card>
     ),
